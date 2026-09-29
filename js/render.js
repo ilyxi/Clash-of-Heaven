@@ -477,14 +477,19 @@ const Render = (() => {
     // speed lines
     ctx.fillStyle = U.rgba(el.light, 0.35);
     for (let n = 0; n < 12; n++) { const ly = y - h / 2 + 4 + ((n * 37 + Math.floor(c.t * 60) * 13) % (h - 8)); ctx.fillRect((n * 97 + c.t * 900) % VW, ly, 30 + (n % 3) * 20, 1); }
-    const por = Sprites.portrait(lookFor(f), 3);
-    const px = Math.round(U.lerp(-por.lw, VW * 0.18, U.easeOutCubic(Math.min(1, c.t / 0.25))) + c.t * 12);
+    // narrow (portrait) screens: smaller portrait and title so the name fits
+    const narrow = VW < 320;
+    const por = Sprites.portrait(lookFor(f), narrow ? 2 : 3);
+    const px = Math.round(U.lerp(-por.lw, narrow ? 2 : VW * 0.18, U.easeOutCubic(Math.min(1, c.t / 0.25))) + c.t * (narrow ? 6 : 12));
     ctx.save(); ctx.beginPath(); ctx.rect(0, y - h / 2 + 2, VW, h - 4); ctx.clip();
     drawHi(ctx, por, px, y - por.lh / 2 + 6);
     ctx.restore();
-    const tx = Math.round(U.lerp(VW + 50, VW * 0.42, U.easeOutCubic(Math.min(1, c.t / 0.3))));
+    const nameScale = narrow && Font.measure(c.name.toUpperCase(), 2) > VW - por.lw - 10 ? 1 : 2;
+    const nameW = Font.measure(c.name.toUpperCase(), nameScale);
+    const tx0 = narrow ? Math.max(por.lw + 4, Math.min(VW * 0.42, VW - nameW - 4)) : VW * 0.42;
+    const tx = Math.round(U.lerp(VW + 50, tx0, U.easeOutCubic(Math.min(1, c.t / 0.3))));
     Font.draw(ctx, 'ULTIMATE', tx, y - 18, el.light, { outline: '#120a18' });
-    Font.draw(ctx, c.name.toUpperCase(), tx, y - 6, '#ffffff', { scale: 2, outline: '#120a18' });
+    Font.draw(ctx, c.name.toUpperCase(), tx, y - 6, '#ffffff', { scale: nameScale, outline: '#120a18' });
     Font.draw(ctx, f.name.toUpperCase(), tx, y + 14, el.color, { outline: '#120a18' });
   }
 
