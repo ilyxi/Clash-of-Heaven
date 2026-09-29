@@ -160,4 +160,5 @@ const Game = {
   },
 };
 
-window.addEventListener('load', () => Game.boot());
+if (document.readyState === 'complete') Game.boot();
+else window.addEventListener('load', () => Game.boot());

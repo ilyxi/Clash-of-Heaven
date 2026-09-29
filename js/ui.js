@@ -339,7 +339,7 @@ const UI = (() => {
 
     function doSave(then) {
       ch.name = (ch.name || '').trim() || 'Nameless';
-      if (new Set(ch.jutsu).size !== 4) { alert('Pick four different jutsu.'); return; }
+      if (new Set(ch.jutsu).size !== 4) { tab = 'jutsu'; renderBody(); return; }
       Roster.save(ch);
       then();
     }
@@ -362,6 +362,17 @@ const UI = (() => {
   }
 
   // ================================================================== ROSTER
+  // Two-step delete built into the page (browser confirm dialogs may be blocked).
+  function deleteButton(sel) {
+    let armed = false;
+    const b = btn('Delete', () => {
+      if (!armed) { armed = true; b.textContent = 'Really delete?'; setTimeout(() => { armed = false; b.textContent = 'Delete'; }, 3000); return; }
+      Roster.remove(sel.id);
+      roster();
+    }, 'small danger');
+    return b;
+  }
+
   function roster(selId) {
     const all = Roster.all();
     let sel = Roster.byId(selId) || all[0];
@@ -384,7 +395,7 @@ const UI = (() => {
         h('div', { class: 'card' }, iconImg(Icons.ultimate(ULTIMATES[sel.ultimate]), 40), h('div', null, h('div', { class: 't', text: ULTIMATES[sel.ultimate].name }), h('div', { class: 'd', text: ULTIMATES[sel.ultimate].desc })))),
       h('div', { class: 'row', style: 'margin-top:14px' },
         btn(custom ? 'Edit' : 'Customize Copy', () => creator(sel, () => roster(sel.id)), 'small'),
-        custom ? btn('Delete', () => { if (confirm('Delete ' + sel.name + '?')) { Roster.remove(sel.id); roster(); } }, 'small danger') : null,
+        custom ? deleteButton(sel) : null,
         btn('Battle as ' + sel.name.split(' ')[0], () => { const st = loadSetup(); st.player = sel.id; st.slots[0].char = sel.id; st.spectate = false; Store.set(SETUP_KEY, st); setup(); }, 'primary small')),
     );
     screen('dim',
