@@ -30,6 +30,13 @@ const Game = {
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
+    window.addEventListener('gamepadconnected', (e) => {
+      const sony = /054c|dualsense|dualshock|wireless controller|playstation/i.test(e.gamepad.id || '');
+      const name = /dualsense|0ce6|0df2/i.test(e.gamepad.id || '') ? 'PS5 CONTROLLER' : sony ? 'PLAYSTATION CONTROLLER' : 'CONTROLLER';
+      UI.toast(name + ' CONNECTED');
+      if (this.world && this.screen === 'game') this.world.notice(name + ' CONNECTED', '#8ff0ff');
+    });
+    window.addEventListener('gamepaddisconnected', () => UI.toast('CONTROLLER DISCONNECTED'));
     this.startDemo();
     UI.title();
     const boot = document.getElementById('boot');
@@ -131,12 +138,23 @@ const Game = {
 
   frame(dt) {
     const w = this.world;
+    Input.poll();
+    const menuEv = Input.menuEvents();
+    const uiWasOpen = UI.open;
     if (Input.consume('mute')) { Settings.data.muted = !Settings.data.muted; Settings.save(); }
     if (this.screen === 'game') {
       if (Input.consume('pause')) { if (this.paused) this.resume(); else this.pause(); }
       if (!w.player && !this.paused) {
         if (Input.consume('left')) w.spectateNext(-1);
         if (Input.consume('right')) w.spectateNext(1);
+      }
+    }
+    // controller navigation for the HTML menus
+    if (uiWasOpen && UI.open) {
+      for (const ev of menuEv) {
+        if (ev === 'start' && this.screen === 'game') continue; // pause toggle handled above
+        if (!this.audioReady) { this.audioReady = true; SFX.init(); SFX.Music.start(this.screen === 'game' ? 'battle' : 'menu'); }
+        UI.padEvent(ev);
       }
     }
     if (!this.paused) {

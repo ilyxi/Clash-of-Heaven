@@ -26,6 +26,8 @@ const UI = (() => {
     return el;
   }
 
+  let backFn = null; // what the controller's Circle/B button does on this screen
+
   function clear() {
     for (const id of rafs) cancelAnimationFrame(id);
     rafs = [];
@@ -37,7 +39,89 @@ const UI = (() => {
     clear();
     const s = h('div', { class: 'screen ' + cls }, ...kids);
     root.appendChild(s);
+    if (document.body.classList.contains('pad-nav')) requestAnimationFrame(() => { if (!root.contains(document.activeElement)) focusEl(preferred()); });
     return s;
+  }
+
+  // ---- controller navigation ---------------------------------------------------
+  function focusables() {
+    return [...root.querySelectorAll('button, select, input, [tabindex]')].filter((el) => !el.disabled && el.offsetParent !== null);
+  }
+  function preferred() {
+    const els = focusables();
+    return root.querySelector('.btn.primary') || els.find((el) => !el.classList.contains('back')) || els[0];
+  }
+  function focusEl(el) {
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  function moveFocus(cur, dir) {
+    const r = cur.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let best = null, bs = Infinity;
+    for (const el of focusables()) {
+      if (el === cur) continue;
+      const q = el.getBoundingClientRect();
+      const dx = q.left + q.width / 2 - cx, dy = q.top + q.height / 2 - cy;
+      const along = dir === 'up' ? -dy : dir === 'down' ? dy : dir === 'left' ? -dx : dx;
+      const perp = dir === 'up' || dir === 'down' ? Math.abs(dx) : Math.abs(dy);
+      if (along <= 4) continue;
+      const score = along + perp * 2.2;
+      if (score < bs) { bs = score; best = el; }
+    }
+    if (best) { focusEl(best); SFX.play('ui', 0.4); }
+  }
+  // Re-focus the same slot if a click re-rendered the screen.
+  function keepFocus(el, action) {
+    const idx = focusables().indexOf(el);
+    action();
+    if (!root.contains(document.activeElement)) {
+      const els = focusables();
+      focusEl(els[Math.min(Math.max(0, idx), els.length - 1)]);
+    }
+  }
+  function stepSelect(el, d) {
+    keepFocus(el, () => {
+      el.selectedIndex = (el.selectedIndex + d + el.options.length) % el.options.length;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  function padEvent(ev) {
+    document.body.classList.add('pad-nav');
+    const cur = document.activeElement;
+    const has = root.contains(cur) && focusables().includes(cur);
+    if (ev === 'back') { if (backFn) { SFX.play('uiBack', 0.8); backFn(); } return; }
+    if (ev === 'prevTab' || ev === 'nextTab') {
+      const tabs = [...root.querySelectorAll('.tabs button')];
+      const i = tabs.findIndex((t) => t.classList.contains('on'));
+      if (tabs.length) tabs[(i + (ev === 'nextTab' ? 1 : -1) + tabs.length) % tabs.length].click();
+      return;
+    }
+    if (!has) { focusEl(preferred()); return; }
+    if (ev === 'accept' || ev === 'start') {
+      if (cur.tagName === 'SELECT') stepSelect(cur, 1);
+      else if (cur.tagName === 'INPUT' && cur.type === 'text') return;
+      else keepFocus(cur, () => cur.click());
+      return;
+    }
+    if ((ev === 'left' || ev === 'right') && cur.tagName === 'INPUT' && cur.type === 'range') {
+      const step = parseFloat(cur.step) || 0.1;
+      cur.value = U.clamp(parseFloat(cur.value) + (ev === 'left' ? -step : step), parseFloat(cur.min), parseFloat(cur.max));
+      cur.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+    if ((ev === 'left' || ev === 'right') && cur.tagName === 'SELECT') { stepSelect(cur, ev === 'left' ? -1 : 1); return; }
+    moveFocus(cur, ev);
+  }
+
+  let toastEl = null, toastT = null;
+  function toast(text) {
+    if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toast'; document.body.appendChild(toastEl); }
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(() => toastEl.classList.remove('show'), 2600);
   }
 
   function btn(text, fn, cls = '') {
@@ -85,6 +169,7 @@ const UI = (() => {
 
   // =================================================================== TITLE
   function title() {
+    backFn = null;
     screen('clear',
       h('div', { class: 'logo' }, h('span', { class: 'l1', text: 'CLASH' }), h('span', { class: 'l2', text: 'OF' }), h('span', { class: 'l3', text: 'HEAVEN' })),
       h('div', { class: 'tagline', text: 'SHINOBI ARENA  -  UP TO 10 FIGHTERS' }),
@@ -97,7 +182,7 @@ const UI = (() => {
         btn('How to Play', () => howto(title)),
         btn('Settings', () => settings(title)),
       ),
-      h('div', { class: 'footer', text: 'Mouse + keyboard or gamepad  -  M to mute' }),
+      h('div', { class: 'footer', text: 'Keyboard + mouse, or a controller (PS5 / Xbox: press any button to connect)  -  M to mute' }),
     );
   }
 
@@ -121,6 +206,7 @@ const UI = (() => {
   }
 
   function setup() {
+    backFn = title;
     const s = loadSetup();
     const save = () => Store.set(SETUP_KEY, s);
     const rerender = () => { save(); setup(); };
@@ -147,7 +233,7 @@ const UI = (() => {
 
     const playerPick = h('div', { class: 'roster', style: 'max-height:210px;overflow-y:auto' });
     for (const c of all) {
-      const card = h('div', { class: 'rcard' + (c.id === s.player ? ' on' : ''), onclick: () => { s.player = c.id; s.slots[0].char = c.id; rerender(); } },
+      const card = h('div', { tabindex: '0', class: 'rcard' + (c.id === s.player ? ' on' : ''), onclick: () => { s.player = c.id; s.slots[0].char = c.id; rerender(); } },
         portraitCanvas(c.look, 1), h('div', { class: 'n', text: c.name }), h('div', { class: 'el', style: `color:${(ELEMENTS[c.affinity] || ELEMENTS.shinobi).color}`, text: (ELEMENTS[c.affinity] || ELEMENTS.shinobi).name }));
       if (!c.id.startsWith('p_')) card.appendChild(h('div', { class: 'badge', text: 'CUSTOM' }));
       playerPick.appendChild(card);
@@ -205,6 +291,7 @@ const UI = (() => {
 
   // ================================================================= CREATOR
   function creator(existing, back) {
+    backFn = () => (back || title)();
     const isNew = !existing || existing.id.startsWith('p_');
     const ch = existing ? U.deepCopy(existing) : Roster.randomCharacter('New Shinobi');
     if (!existing || existing.id.startsWith('p_')) { ch.id = Roster.newId(); if (existing) ch.name = existing.name + ' II'; }
@@ -248,7 +335,7 @@ const UI = (() => {
 
     function lookTab() {
       const L = ch.look;
-      const swatch = (key, options) => h('div', { class: 'swatches' }, ...options.map((c) => h('div', { class: 'sw' + (L[key] === c ? ' on' : ''), style: `background:${c}`, title: c, onclick: () => { L[key] = c; renderBody(); } })));
+      const swatch = (key, options) => h('div', { class: 'swatches' }, ...options.map((c) => h('div', { tabindex: '0', class: 'sw' + (L[key] === c ? ' on' : ''), style: `background:${c}`, title: c, onclick: () => { L[key] = c; renderBody(); } })));
       return h('div', null,
         h('label', { class: 'field' }, 'NAME', nameInput),
         h('h3', { text: 'HAIR STYLE' }), seg(LOOKS.hairStyles.map((x) => [x.id, x.name]), L.hairStyle, (v) => { L.hairStyle = v; renderBody(); }),
@@ -285,7 +372,7 @@ const UI = (() => {
       const slots = h('div', { class: 'slots' });
       ch.jutsu.forEach((id, i) => {
         const def = JUTSU[id];
-        slots.appendChild(h('div', { class: 'slot' + (selSlot === i ? ' on' : ''), onclick: () => { selSlot = i; renderBody(); } },
+        slots.appendChild(h('div', { tabindex: '0', class: 'slot' + (selSlot === i ? ' on' : ''), onclick: () => { selSlot = i; renderBody(); } },
           h('div', { class: 'k', text: ['Q', 'E', 'R', 'F'][i] }), def ? iconImg(Icons.jutsu(def), 40) : null, h('div', { text: def ? def.name : 'Empty' })));
       });
       const filters = seg([['all', 'All'], ...ELEMENT_ORDER.map((e) => [e, ELEMENTS[e].short])], filter, (v) => { filter = v; renderBody(); });
@@ -374,11 +461,12 @@ const UI = (() => {
   }
 
   function roster(selId) {
+    backFn = title;
     const all = Roster.all();
     let sel = Roster.byId(selId) || all[0];
     const grid = h('div', { class: 'roster' });
     for (const c of all) {
-      const card = h('div', { class: 'rcard' + (c.id === sel.id ? ' on' : ''), onclick: () => roster(c.id) },
+      const card = h('div', { tabindex: '0', class: 'rcard' + (c.id === sel.id ? ' on' : ''), onclick: () => roster(c.id) },
         portraitCanvas(c.look, 1), h('div', { class: 'n', text: c.name }),
         h('div', { class: 'el', style: `color:${(ELEMENTS[c.affinity] || ELEMENTS.shinobi).color}`, text: (ELEMENTS[c.affinity] || ELEMENTS.shinobi).name }));
       if (!c.id.startsWith('p_')) card.appendChild(h('div', { class: 'badge', text: 'CUSTOM' }));
@@ -406,6 +494,7 @@ const UI = (() => {
 
   // ================================================================= HOW TO
   function howto(back) {
+    backFn = back;
     const k = (key, what) => [h('span', { class: 'key', text: key }), h('span', { text: what })];
     screen('dim',
       h('div', { class: 'topbar' }, btn('Back', () => back(), 'small back'), h('h2', { text: 'HOW TO PLAY' })),
@@ -415,7 +504,13 @@ const UI = (() => {
           k('RMB / K', 'Heavy attack - hold to charge, breaks guards'), k('SPACE', 'Dash (invulnerable start) / Substitution when hit'),
           k('SHIFT / L', 'Block - tap right before a hit to PARRY'), k('Q E R F', 'Your four jutsu (or 1-4)'), k('X / MMB', 'Throw kunai (3 ammo)'),
           k('C', 'Hold to charge chakra'), k('T', 'Awaken (meter full)'), k('G / V', 'Ultimate (meter full)'), k('TAB', 'Scoreboard'), k('ESC', 'Pause'), k('M', 'Mute'))),
-        h('section', null, h('h3', { text: 'GAMEPAD' }), h('p', { text: 'Left stick move, right stick aim. A light, X heavy, B dash, RB block, LB kunai, RT charge. Hold LT + A/B/X/Y for jutsu 1-4. L3 awaken, R3 ultimate.' })),
+        h('section', null, h('h3', { text: 'CONTROLLER (PS5 / XBOX)' }),
+          h('p', { text: 'Plug in or pair the controller, then press any button - browsers only reveal a controller after a button press. Chrome and Edge work best.' }),
+          h('div', { class: 'keys' },
+            k('L STICK', 'Move'), k('R STICK', 'Aim (release to auto-aim the nearest enemy)'), k('CROSS / A', 'Light attack'), k('SQUARE / X', 'Heavy attack (hold)'),
+            k('CIRCLE / B', 'Dash / Substitution'), k('TRIANGLE / Y', 'Kunai'), k('R1 / RB', 'Block (tap = parry)'), k('L1 / LB', 'Charge chakra (hold)'),
+            k('HOLD L2 / LT', '+ Cross, Circle, Square, Triangle = jutsu 1-4'), k('L3 / D-UP', 'Awaken'), k('R2 / RT', 'Ultimate'), k('OPTIONS', 'Pause'), k('TOUCHPAD', 'Scoreboard')),
+          h('p', { class: 'note', text: 'In menus: D-pad or left stick to move, Cross / A to select, Circle / B to go back, L1/R1 to switch tabs.' })),
         h('section', null, h('h3', { text: 'COMBAT BASICS' }),
           h('p', { text: 'Mash light attack for a 4-hit string ending in a launcher. Launched enemies can be juggled with more hits or jutsu. Slam enemies into walls, trees and houses for bonus damage - big hits smash straight through.' }),
           h('p', { text: 'Heavy attacks are slow but crush blocks. A fully charged heavy breaks any guard.' }),
@@ -441,6 +536,7 @@ const UI = (() => {
 
   // ================================================================ SETTINGS
   function settings(back) {
+    backFn = back;
     const S = Settings.data;
     const slider = (label, key, min, max, step) => h('label', { class: 'field' }, label, h('input', { type: 'range', min, max, step, value: S[key], oninput: (e) => { S[key] = +e.target.value; Settings.save(); } }));
     screen('dim',
@@ -463,6 +559,7 @@ const UI = (() => {
 
   // =================================================================== PAUSE
   function pause() {
+    backFn = () => Game.resume();
     screen('dim',
       h('div', { class: 'pausebox panel' },
         h('h2', { text: 'PAUSED' }),
@@ -477,6 +574,7 @@ const UI = (() => {
 
   // ================================================================= RESULTS
   function results(w) {
+    backFn = () => Game.toMenu();
     const rows = w.fighters.filter((f) => !f.isClone);
     const score = (f) => f.kills * 3 + f.assists + f.dmgDealt / 250;
     const mvp = rows.slice().sort((a, b) => score(b) - score(a))[0];
@@ -523,6 +621,7 @@ const UI = (() => {
     'You are invulnerable while your ultimate winds up.',
   ];
   function loading(mapName) {
+    backFn = null;
     screen('dim',
       h('div', { class: 'pausebox', style: 'width:min(560px,90vw)' },
         h('div', { class: 'bigresult', style: 'color:#ffd35c;font-size:22px;margin:0', text: 'PREPARING ARENA' }),
@@ -532,8 +631,11 @@ const UI = (() => {
     );
   }
 
-  function init() { root = document.getElementById('ui'); }
+  function init() {
+    root = document.getElementById('ui');
+    window.addEventListener('mousemove', () => document.body.classList.remove('pad-nav'));
+  }
   function hide() { clear(); }
 
-  return { init, title, setup, creator, roster, howto, settings, pause, results, hide, loading, buildConfig, loadSetup, get open() { return root && root.childElementCount > 0; } };
+  return { init, title, setup, creator, roster, howto, settings, pause, results, hide, loading, buildConfig, loadSetup, padEvent, toast, get open() { return root && root.childElementCount > 0; } };
 })();

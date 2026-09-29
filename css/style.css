@@ -129,3 +129,11 @@ table.res canvas { width: 32px; height: 29px; vertical-align: middle; }
 .mvp { font-family: var(--head); font-size: 8px; background: var(--accent2); color: #120a18; padding: 2px 4px; margin-left: 6px; }
 .note { font-size: 11px; color: var(--muted); }
 .pausebox { margin: auto; display: flex; flex-direction: column; gap: 10px; width: min(320px, 90vw); text-align: center; }
+
+/* ---- controller navigation --------------------------------------------- */
+body.pad-nav #ui :focus { outline: 3px solid var(--accent2); outline-offset: 2px; }
+body.pad-nav #ui .btn:focus { background: var(--accent); color: #1a0e06; }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 40px); opacity: 0; transition: transform 0.25s, opacity 0.25s;
+  font-family: var(--head); font-size: 10px; letter-spacing: 1px; color: #120a18; background: var(--accent2); border: 3px solid #000; padding: 10px 14px; pointer-events: none; z-index: 10; }
+.toast.show { transform: translate(-50%, 0); opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }

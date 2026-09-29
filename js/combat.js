@@ -91,6 +91,12 @@ const Combat = {
     dmg = Math.max(1, Math.round(dmg));
 
     Combat.applyDamage(t, dmg, src, h, false, crit);
+    // controller rumble for the local player
+    const P = W.player;
+    if (P && h.kind !== 'dot') {
+      if (t === P) Input.rumble(Math.min(1, 0.25 + dmg / 90), Math.min(1, 0.35 + dmg / 120), 80 + Math.min(200, dmg * 2));
+      else if (src && (src.owner || src) === P) Input.rumble(0, Math.min(0.6, 0.15 + dmg / 150), 50);
+    }
     if (t.dead) return 'hit';
 
     // ---- status effects -------------------------------------------------------

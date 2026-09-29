@@ -35,8 +35,9 @@ const Input = (() => {
   let released = new Set();
 
   const mouse = { cx: 0, cy: 0, lastMove: -1e9, inside: false };
-  const pad = { active: false, lx: 0, ly: 0, rx: 0, ry: 0, lastUse: -1e9 };
+  const pad = { active: false, connected: false, sony: false, id: '', lx: 0, ly: 0, rx: 0, ry: 0, lastUse: -1e9 };
   let padPrev = {};
+  let lastKeyT = -1e9;
   let canvas = null;
   let enabled = true; // false while typing in UI inputs
 
@@ -56,6 +57,7 @@ const Input = (() => {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
       if (['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       if (e.repeat) return;
+      lastKeyT = performance.now();
       codeDown(e.code);
     });
     window.addEventListener('keyup', (e) => codeUp(e.code));
@@ -71,9 +73,9 @@ const Input = (() => {
     cv.addEventListener('mouseleave', () => { mouse.inside = false; });
   }
 
-  // Called once per simulation tick.
+  // Called once per simulation tick. (Gamepads are polled once per frame by
+  // poll(), before UI-level keys like pause are consumed.)
   function tick() {
-    pollPad();
     pressed = new Set(queued); queued.clear();
     released = new Set(queuedUp); queuedUp.clear();
   }
@@ -96,30 +98,119 @@ const Input = (() => {
     return hit;
   }
 
-  // ---- gamepad (standard mapping) ------------------------------------------
-  function pollPad() {
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let gp = null;
-    for (const p of pads) if (p && p.connected) { gp = p; break; }
-    if (!gp) { pad.active = false; return; }
-    const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
-    pad.lx = dz(gp.axes[0] || 0); pad.ly = dz(gp.axes[1] || 0);
-    pad.rx = dz(gp.axes[2] || 0); pad.ry = dz(gp.axes[3] || 0);
-    const b = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
-    const lt = b(6);
+  // ---- gamepads -------------------------------------------------------------
+  // Every connected pad is read and merged (a phantom/virtual device in slot 0
+  // must not hide the real controller). Pads are normalised to the W3C
+  // "standard" layout: 0 A/Cross 1 B/Circle 2 X/Square 3 Y/Triangle 4 LB/L1
+  // 5 RB/R1 6 LT/L2 7 RT/R2 8 Back/Create 9 Start/Options 10 L3 11 R3
+  // 12-15 d-pad up/down/left/right 16 Home/PS 17 touchpad.
+  let rawPads = [];
+  const std = { b: new Array(18).fill(0), lx: 0, ly: 0, rx: 0, ry: 0 };
+
+  function readPads() {
+    let list = [];
+    try { list = navigator.getGamepads ? Array.from(navigator.getGamepads() || []) : []; } catch (e) { list = []; }
+    return list.filter((p) => p && p.connected !== false);
+  }
+
+  function isSony(gp) { return /054c|dualsense|dualshock|wireless controller|playstation/i.test(gp.id || ''); }
+
+  function normalise(gp) {
+    const raw = (i) => { const b = gp.buttons[i]; if (!b) return 0; return typeof b === 'object' ? Math.max(b.value || 0, b.pressed ? 1 : 0) : +b; };
+    const ax = (i) => gp.axes[i] || 0;
+    const out = { b: new Array(18).fill(0), lx: ax(0), ly: ax(1), rx: ax(2), ry: ax(3), sony: isSony(gp) };
+    if (gp.mapping === 'standard' || !out.sony) {
+      for (let i = 0; i < 18; i++) out.b[i] = raw(i);
+      return out;
+    }
+    // Sony pad the browser didn't remap (e.g. Firefox on Windows):
+    // raw 0 Square 1 Cross 2 Circle 3 Triangle 4 L1 5 R1 6 L2 7 R2 8 Create
+    // 9 Options 10 L3 11 R3 12 PS 13 touchpad; right stick on axes 2/5; d-pad hat on axis 9.
+    const b = out.b;
+    b[0] = raw(1); b[1] = raw(2); b[2] = raw(0); b[3] = raw(3);
+    b[4] = raw(4); b[5] = raw(5); b[6] = raw(6); b[7] = raw(7);
+    b[8] = raw(8); b[9] = raw(9); b[10] = raw(10); b[11] = raw(11); b[16] = raw(12); b[17] = raw(13);
+    if (gp.axes.length > 5) out.ry = ax(5);
+    const hat = gp.axes[9];
+    if (hat !== undefined && hat >= -1.01 && hat <= 1.01) {
+      const k = Math.round((hat + 1) * 3.5); // 0 up .. 7 up-left, 8 = centred
+      b[12] = [7, 0, 1].includes(k) ? 1 : 0; b[15] = [1, 2, 3].includes(k) ? 1 : 0;
+      b[13] = [3, 4, 5].includes(k) ? 1 : 0; b[14] = [5, 6, 7].includes(k) ? 1 : 0;
+    }
+    return out;
+  }
+
+  function stick(x, y) {
+    const m = Math.hypot(x, y);
+    if (m < 0.2) return [0, 0];
+    const k = Math.min(1, (m - 0.2) / 0.75) / m;
+    return [x * k, y * k];
+  }
+
+  // Poll once per frame (before UI keys are consumed).
+  function poll() {
+    rawPads = readPads();
+    std.b.fill(0); std.lx = std.ly = std.rx = std.ry = 0;
+    let lm = 0, rm = 0;
+    for (const gp of rawPads) {
+      const n = normalise(gp);
+      for (let i = 0; i < 18; i++) std.b[i] = Math.max(std.b[i], n.b[i]);
+      const [lx, ly] = stick(n.lx, n.ly), [rx, ry] = stick(n.rx, n.ry);
+      if (Math.hypot(lx, ly) > lm) { lm = Math.hypot(lx, ly); std.lx = lx; std.ly = ly; }
+      if (Math.hypot(rx, ry) > rm) { rm = Math.hypot(rx, ry); std.rx = rx; std.ry = ry; }
+      if (n.b.some((v) => v > 0.5) || lm || rm) { pad.sony = n.sony; pad.id = gp.id; }
+    }
+    pad.connected = rawPads.length > 0;
+    pad.lx = std.lx; pad.ly = std.ly; pad.rx = std.rx; pad.ry = std.ry;
+    const b = (i) => std.b[i] > 0.45;
+    const l2 = b(6);
     const state = {
-      light: b(0) && !lt, dash: b(1) && !lt, heavy: b(2) && !lt, kunai: b(4),
-      block: b(5), charge: b(7), awaken: b(10), ultimate: b(11),
-      j1: lt && b(0), j2: lt && b(1), j3: lt && b(2), j4: lt && b(3),
-      pause: b(9), score: b(8),
+      light: b(0) && !l2, dash: b(1) && !l2, heavy: b(2) && !l2, kunai: b(3) && !l2,
+      j1: l2 && b(0), j2: l2 && b(1), j3: l2 && b(2), j4: l2 && b(3),
+      charge: b(4), block: b(5), ultimate: b(7) || b(11) || b(13), awaken: b(10) || b(12),
+      pause: b(9), score: b(8) || b(17), left: b(14), right: b(15),
     };
-    let any = pad.lx || pad.ly || pad.rx || pad.ry;
+    let any = !!(pad.lx || pad.ly || pad.rx || pad.ry);
     for (const k in state) {
       const code = 'Pad:' + k;
       if (state[k]) { any = true; codeDown(code); } else if (padPrev[k]) codeUp(code);
     }
     padPrev = state;
     if (any) { pad.active = true; pad.lastUse = performance.now(); }
+    else if (!pad.connected) pad.active = false;
+  }
+
+  // Menu navigation edges from the pad: d-pad / left stick with auto-repeat.
+  const menu = { prev: {}, dir: null, next: 0 };
+  function menuEvents() {
+    const ev = [];
+    const now = performance.now();
+    const b = (i) => std.b[i] > 0.45;
+    let dir = null;
+    if (b(12) || std.ly < -0.6) dir = 'up';
+    else if (b(13) || std.ly > 0.6) dir = 'down';
+    else if (b(14) || std.lx < -0.6) dir = 'left';
+    else if (b(15) || std.lx > 0.6) dir = 'right';
+    if (dir !== menu.dir) { menu.dir = dir; if (dir) { ev.push(dir); menu.next = now + 380; } }
+    else if (dir && now >= menu.next) { ev.push(dir); menu.next = now + 110; }
+    const cur = { accept: b(0), back: b(1), start: b(9), prevTab: b(4), nextTab: b(5) };
+    for (const k in cur) if (cur[k] && !menu.prev[k]) ev.push(k);
+    menu.prev = cur;
+    if (ev.length) pad.lastUse = now;
+    return ev;
+  }
+
+  let lastRumble = 0;
+  function rumble(strong, weak, ms) {
+    if (!usingPad()) return;
+    const now = performance.now();
+    if (now - lastRumble < 90) return;
+    lastRumble = now;
+    for (const gp of rawPads) {
+      const va = gp.vibrationActuator;
+      if (!va || !va.playEffect) continue;
+      try { va.playEffect('dual-rumble', { duration: ms, strongMagnitude: U.clamp(strong, 0, 1), weakMagnitude: U.clamp(weak, 0, 1) }).catch(() => {}); } catch (e) { /* unsupported */ }
+    }
   }
 
   // Movement vector in *screen* space (x right, y down), length <= 1.
@@ -147,9 +238,13 @@ const Input = (() => {
   function usingMouse() {
     return mouse.lastMove > pad.lastUse && mouse.lastMove > 0;
   }
+  // True when the controller was used more recently than keyboard or mouse.
+  function usingPad() {
+    return pad.connected && pad.lastUse > Math.max(mouse.lastMove, lastKeyT);
+  }
 
   return {
-    attach, tick, isDown, wasPressed, wasReleased, consume, moveVector, mouseView, usingMouse,
+    attach, tick, poll, menuEvents, rumble, isDown, wasPressed, wasReleased, consume, moveVector, mouseView, usingMouse, usingPad,
     pad, mouse, BINDINGS, ACTIONS,
     set enabled(v) { enabled = v; }, get enabled() { return enabled; },
   };

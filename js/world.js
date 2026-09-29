@@ -271,7 +271,10 @@ class World {
     const name = ability ? (JUTSU[ability] ? JUTSU[ability].name : ULTIMATES[ability] ? ULTIMATES[ability].name : ability === 'taijutsu' ? 'Taijutsu' : ability === 'kunai' ? 'Kunai' : '') : '';
     this.killfeed.push({ killer, victim: f, name, t: this.realTime });
     if (this.killfeed.length > 6) this.killfeed.shift();
-    if (f === this.player) this.notice(killer ? 'DEFEATED BY ' + killer.name.toUpperCase() : 'DEFEATED', '#ff6a6a');
+    if (f === this.player) {
+      this.notice(killer ? 'DEFEATED BY ' + killer.name.toUpperCase() : 'DEFEATED', '#ff6a6a');
+      Input.rumble(1, 1, 450);
+    }
 
     if (this.cfg.training) {
       f.respawnT = f === this.player ? 2 : 1.5;
@@ -286,6 +289,7 @@ class World {
   }
 
   onUltimate(f) {
+    if (f === this.player) Input.rumble(0.7, 0.8, 380);
     if (this.isWatched(f) || this.onScreen(f)) {
       this.cutin = { f, t: 0, dur: 1.15, name: f.ultimate.name };
       if (f === this.player) this.slowmo(0.4, 0.35);

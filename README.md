@@ -9,13 +9,17 @@ Everything is procedurally generated in code: sprites, tiles, maps, icons, sound
 
 ## Play
 
-Open `index.html` in a modern browser. Or serve the folder with any static server:
+**Easiest:** download [`dist/clash-of-heaven.html`](dist/clash-of-heaven.html) (one self-contained file) and double-click it. It opens in your browser; no install or internet needed (the pixel fonts load when you're online, and the game falls back to a plain font offline). Chrome or Edge is recommended, especially with a controller.
+
+From the source folder you can also open `index.html` directly, or serve it with any static server:
 
 ```sh
 npx http-server .     # or: python3 -m http.server
 ```
 
 Because the game is fully static, you can host it with **GitHub Pages**. In the repository settings, go to Pages and choose "Deploy from branch" with the root of your branch.
+
+After changing the source, rebuild the single file with `node tools/bundle.js`.
 
 ## Features
 
@@ -49,20 +53,22 @@ Because the game is fully static, you can host it with **GitHub Pages**. In the 
 
 ## Controls
 
-| Action | Keyboard / Mouse | Gamepad |
-| --- | --- | --- |
-| Move | `WASD` / arrows | Left stick |
-| Aim | Mouse | Right stick |
-| Light attack (combo) | `LMB` / `J` | A |
-| Heavy attack (hold to charge) | `RMB` / `K` | X |
-| Dash / Substitution (when hit) | `Space` | B |
-| Block (tap just before a hit to parry) | `Shift` / `L` | RB |
-| Jutsu 1–4 | `Q` `E` `R` `F` / `1`–`4` | LT + A/B/X/Y |
-| Kunai | `X` / `MMB` | LB |
-| Charge chakra | hold `C` | RT |
-| Awaken | `T` | L3 |
-| Ultimate | `G` / `V` | R3 |
-| Scoreboard / Pause / Mute | `Tab` / `Esc` / `M` | Back / Start |
+| Action | Keyboard / Mouse | PS5 controller | Xbox controller |
+| --- | --- | --- | --- |
+| Move | `WASD` / arrows | Left stick | Left stick |
+| Aim | Mouse | Right stick (let go to auto-aim) | Right stick |
+| Light attack (combo) | `LMB` / `J` | Cross | A |
+| Heavy attack (hold to charge) | `RMB` / `K` | Square | X |
+| Dash / Substitution (when hit) | `Space` | Circle | B |
+| Block (tap just before a hit to parry) | `Shift` / `L` | R1 | RB |
+| Jutsu 1–4 | `Q` `E` `R` `F` / `1`–`4` | Hold L2 + Cross / Circle / Square / Triangle | Hold LT + A / B / X / Y |
+| Kunai | `X` / `MMB` | Triangle | Y |
+| Charge chakra | hold `C` | hold L1 | hold LB |
+| Awaken | `T` | L3 or D-pad up | LS or D-pad up |
+| Ultimate | `G` / `V` | R2 | RT |
+| Scoreboard / Pause / Mute | `Tab` / `Esc` / `M` | Touchpad / Options | Back / Start |
+
+Controllers also drive every menu: D-pad or left stick to move, Cross/A to select, Circle/B to go back, L1/R1 to switch tabs. **Press any button after the page opens**: browsers only reveal a controller once it has been pressed. If a PS5 controller still isn't detected, close Steam (its controller layer can take over the pad) or try Chrome or Edge.
 
 ## Combat tips
 

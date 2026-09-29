@@ -132,7 +132,12 @@ const HUD = (() => {
         ctx.fillStyle = 'rgba(30,60,160,0.55)'; ctx.fillRect(x + 1, y0 + 1, size - 2, size - 2);
       }
       if (f.state === 'cast' && f.castSlot === i) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y0 - 1, size, 1); ctx.fillRect(x, y0 + size, size, 1); }
-      Font.draw(ctx, KEYS[i], x + size / 2, y0 + size + 3, '#e8dcc0', { align: 'center', outline: OUT });
+      if (Input.usingPad()) {
+        Font.draw(ctx, Input.pad.sony ? 'L2' : 'LT', x + 1, y0 + size + 3, '#e8dcc0', { outline: OUT });
+        padGlyph(ctx, x + size - 5, y0 + size + 6, i);
+      } else {
+        Font.draw(ctx, KEYS[i], x + size / 2, y0 + size + 3, '#e8dcc0', { align: 'center', outline: OUT });
+      }
       const L = f.lvlOf(s.id);
       for (let p = 0; p < 5; p++) {
         ctx.fillStyle = p < L ? (L >= 5 ? '#ff9af0' : '#8ff0ff') : '#3a2e4a';
@@ -142,13 +147,14 @@ const HUD = (() => {
     }
     // awakening & ultimate orbs
     const aw = f.awakening, ul = f.ultimate;
+    const pad = Input.usingPad(), sony = Input.pad.sony;
     if (aw) {
       const k = f.awakened ? f.awakened.t / aw.dur : f.awak / 100;
-      orb(ctx, x0 - 20, y0 + 11, 11, k, aw.colors[1], 'T', !f.awakened && f.awak >= 100, f.time, !!f.awakened);
+      orb(ctx, x0 - 20, y0 + 11, 11, k, aw.colors[1], pad ? (sony ? 'L3' : 'LS') : 'T', !f.awakened && f.awak >= 100, f.time, !!f.awakened);
     }
     if (ul) {
       const el = ELEMENTS[ul.element] || ELEMENTS.shinobi;
-      orb(ctx, x0 + total + 20, y0 + 11, 11, f.ult / 100, el.color, 'G', f.ult >= 100, f.time, f.state === 'ult');
+      orb(ctx, x0 + total + 20, y0 + 11, 11, f.ult / 100, el.color, pad ? (sony ? 'R2' : 'RT') : 'G', f.ult >= 100, f.time, f.state === 'ult');
     }
     // hover labels
     if (f.awak >= 100 && aw && !f.awakened) Font.draw(ctx, 'AWAKEN!', x0 - 20, y0 - 18, aw.colors[0], { align: 'center', outline: OUT });
@@ -286,15 +292,38 @@ const HUD = (() => {
     }
   }
 
+  // PlayStation shapes or Xbox letters, centred on (x, y).
+  function padGlyph(ctx, x, y, i) {
+    x = Math.round(x); y = Math.round(y);
+    if (!Input.pad.sony) { Font.draw(ctx, 'ABXY'[i], x, y - 3, ['#5ad06a', '#ff5a4a', '#4aa8ff', '#ffc83a'][i], { align: 'center', outline: OUT }); return; }
+    ctx.fillStyle = OUT; ctx.fillRect(x - 4, y - 4, 9, 9);
+    ctx.fillStyle = ['#8fb8ff', '#ff7a7a', '#ff9ad8', '#7fe0b0'][i];
+    if (i === 0) { PX.line(ctx, x - 3, y - 3, x + 3, y + 3); PX.line(ctx, x - 3, y + 3, x + 3, y - 3); }
+    else if (i === 1) PX.ellipseRing(ctx, x, y, 3, 3, 1);
+    else if (i === 2) { ctx.fillRect(x - 3, y - 3, 7, 1); ctx.fillRect(x - 3, y + 3, 7, 1); ctx.fillRect(x - 3, y - 3, 1, 7); ctx.fillRect(x + 3, y - 3, 1, 7); }
+    else { PX.line(ctx, x, y - 3, x - 3, y + 3); PX.line(ctx, x, y - 3, x + 3, y + 3); ctx.fillRect(x - 3, y + 3, 7, 1); }
+  }
+
   function drawControlsHint(ctx, VW, VH, t) {
-    const lines = [
+    const sony = Input.pad.sony;
+    const lines = Input.usingPad() ? (sony ? [
+      'L-STICK MOVE   R-STICK AIM   CROSS ATTACK   SQUARE HEAVY',
+      'CIRCLE DASH / SUBSTITUTE   R1 BLOCK (TAP = PARRY)',
+      'HOLD L2 + CROSS/CIRCLE/SQUARE/TRIANGLE = JUTSU',
+      'TRIANGLE KUNAI  L1 CHARGE  L3 AWAKEN  R2 ULTIMATE',
+    ] : [
+      'L-STICK MOVE   R-STICK AIM   A ATTACK   X HEAVY',
+      'B DASH / SUBSTITUTE   RB BLOCK (TAP = PARRY)',
+      'HOLD LT + A / B / X / Y = JUTSU',
+      'Y KUNAI   LB CHARGE   LS AWAKEN   RT ULTIMATE',
+    ]) : [
       'WASD MOVE   MOUSE AIM   LMB ATTACK   RMB HEAVY (HOLD)',
       'SPACE DASH / SUBSTITUTE   SHIFT BLOCK (TAP = PARRY)',
       'Q E R F JUTSU   X KUNAI   C CHARGE CHAKRA',
       'T AWAKEN   G ULTIMATE   TAB SCORES   ESC PAUSE',
     ];
     ctx.globalAlpha = t > 11 ? (14 - t) / 3 : 1;
-    const wdt = 250;
+    const wdt = Math.max(...lines.map((l) => Font.measure(l))) + 12;
     panel(ctx, 5, 62, wdt, 50);
     lines.forEach((l, i) => Font.draw(ctx, l, 10, 67 + i * 11, '#e8dcc0'));
     ctx.globalAlpha = 1;
