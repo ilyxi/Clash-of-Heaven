@@ -417,6 +417,7 @@ const Art = (() => {
       case 'stonepile': s = rockCube(10, v, '#8a8a90'); break;
       default: s = crate(v);
     }
+    s = { c: epx2(s.c), ox: s.ox, oy: s.oy };
     cache.set(key, s);
     return s;
   }

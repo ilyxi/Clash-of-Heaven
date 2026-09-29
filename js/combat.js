@@ -114,16 +114,19 @@ const Combat = {
       const armored = t.hasArmor() && !h.armorBreak;
       let [kx, ky] = h.dirX !== undefined ? [h.dirX, h.dirY] : U.norm(t.x - sx, t.y - sy);
       if (kx === 0 && ky === 0) { kx = Math.cos(t.facing + Math.PI); ky = Math.sin(t.facing + Math.PI); }
-      const knock = (h.knock || 0) * (armored ? 0.15 : 1) * t.knockTaken();
+      // Brawlhalla-style: the more health you've lost, the farther hits send you.
+      const kScale = 1 + 0.75 * U.clamp(1 - t.hp / t.maxHp, 0, 1);
+      const knock = (h.knock || 0) * (armored ? 0.15 : 1) * t.knockTaken() * kScale;
       t.vx += kx * knock; t.vy += ky * knock;
       if (!armored) {
         let stun = h.stun !== undefined ? h.stun : 0.3;
         if (t.comboHits > 12) stun *= 0.5;
         if (h.launch && (t.z > 0 || h.launch > 0)) {
           const decay = Math.max(0.2, 1 - 0.14 * t.juggle);
-          if (t.z > 1) { t.vz = Math.max(t.vz, h.launch * 0.6 * decay); t.juggle++; }
-          else { t.vz = h.launch * decay; t.juggle = t.juggle || 0; }
-          t.airborne = true;
+          const lk = 1 + (kScale - 1) * 0.35;
+          if (t.z > 1) { t.vz = Math.max(t.vz, h.launch * 0.6 * decay * lk); t.juggle++; }
+          else { t.vz = h.launch * decay * lk; t.juggle = t.juggle || 0; }
+
         } else if (h.spike && t.z > 2) {
           t.vz = -420;
         } else if (t.z > 2) {

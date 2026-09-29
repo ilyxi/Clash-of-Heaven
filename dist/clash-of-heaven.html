@@ -331,6 +331,44 @@ const ISO = {
   },
 };
 
+// ---- hi-res sprites -----------------------------------------------------------
+// Sprites are authored at 1x and upscaled 2x with EPX/Scale2x, which smooths
+// diagonals and curves while keeping hard pixel edges. `lw`/`lh` hold the
+// logical (1x) size so drawing code can keep working in logical pixels.
+const HIRES = 2;
+function epx2(src) {
+  const w = src.width, h = src.height;
+  const s = src.getContext('2d').getImageData(0, 0, w, h);
+  const sd = new Uint32Array(s.data.buffer);
+  for (let i = 0; i < sd.length; i++) if ((sd[i] >>> 24) === 0) sd[i] = 0; // normalise transparency
+  const out = U.makeCanvas(w * 2, h * 2);
+  const octx = out.getContext('2d');
+  const o = octx.createImageData(w * 2, h * 2);
+  const od = new Uint32Array(o.data.buffer);
+  const W2 = w * 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const P = sd[y * w + x];
+      const A = y > 0 ? sd[(y - 1) * w + x] : P;
+      const B = x < w - 1 ? sd[y * w + x + 1] : P;
+      const C = x > 0 ? sd[y * w + x - 1] : P;
+      const D = y < h - 1 ? sd[(y + 1) * w + x] : P;
+      const i = (y * 2) * W2 + x * 2;
+      od[i] = (C === A && C !== D && A !== B) ? A : P;
+      od[i + 1] = (A === B && A !== C && B !== D) ? B : P;
+      od[i + W2] = (D === C && D !== B && C !== A) ? C : P;
+      od[i + W2 + 1] = (B === D && B !== A && D !== C) ? D : P;
+    }
+  }
+  octx.putImageData(o, 0, 0);
+  out.lw = w; out.lh = h;
+  return out;
+}
+// Draw a (possibly hi-res) canvas at its logical size.
+function drawHi(ctx, c, x, y) {
+  ctx.drawImage(c, Math.round(x), Math.round(y), c.lw || c.width, c.lh || c.height);
+}
+
 // ---- pixel primitives (crisp, no anti-aliasing) ----------------------------
 const PX = {
   circle(ctx, cx, cy, r) {
@@ -813,14 +851,18 @@ const Input = (() => {
     left: ['KeyA', 'ArrowLeft'],
     right: ['KeyD', 'ArrowRight'],
     light: ['Mouse0', 'KeyJ'],
-    heavy: ['Mouse2', 'KeyK'],
-    dash: ['Space'],
-    block: ['ShiftLeft', 'ShiftRight', 'KeyL'],
+    heavy: ['KeyK'],               // also: hold left mouse
+    jump: ['Space'],
+    dash: ['ShiftLeft', 'ShiftRight'],
+    block: ['Mouse2', 'KeyL'],
+    lock: ['KeyZ', 'Mouse1'],
+    lockNext: ['WheelDown', 'KeyB'],
+    lockPrev: ['WheelUp'],
     j1: ['KeyQ', 'Digit1'],
     j2: ['KeyE', 'Digit2'],
     j3: ['KeyR', 'Digit3'],
     j4: ['KeyF', 'Digit4'],
-    kunai: ['KeyX', 'Mouse1'],
+    kunai: ['KeyX'],
     charge: ['KeyC'],
     awaken: ['KeyT', 'Digit5'],
     ultimate: ['KeyG', 'KeyV', 'Digit6'],
@@ -867,6 +909,7 @@ const Input = (() => {
     cv.addEventListener('mousedown', (e) => { codeDown('Mouse' + e.button); e.preventDefault(); });
     window.addEventListener('mouseup', (e) => codeUp('Mouse' + e.button));
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
+    cv.addEventListener('wheel', (e) => { queued.add(e.deltaY > 0 ? 'WheelDown' : 'WheelUp'); e.preventDefault(); }, { passive: false });
     window.addEventListener('mousemove', (e) => {
       mouse.cx = e.clientX; mouse.cy = e.clientY;
       mouse.lastMove = performance.now();
@@ -966,10 +1009,15 @@ const Input = (() => {
     pad.lx = std.lx; pad.ly = std.ly; pad.rx = std.rx; pad.ry = std.ry;
     const b = (i) => std.b[i] > 0.45;
     const l2 = b(6);
+    // Cross jump, Square light, Triangle heavy (hold), Circle dash, R1 block,
+    // L1 charge, R2 kunai (hold = shuriken), R3 lock-on, d-pad left/right switch
+    // target; hold L2 for jutsu (face buttons), L2+R2 ultimate, L2+R1 awaken.
     const state = {
-      light: b(0) && !l2, dash: b(1) && !l2, heavy: b(2) && !l2, kunai: b(3) && !l2,
+      jump: b(0) && !l2, light: b(2) && !l2, heavy: b(3) && !l2, dash: b(1) && !l2,
       j1: l2 && b(0), j2: l2 && b(1), j3: l2 && b(2), j4: l2 && b(3),
-      charge: b(4), block: b(5), ultimate: b(7) || b(11) || b(13), awaken: b(10) || b(12),
+      charge: b(4) && !l2, block: b(5) && !l2, kunai: b(7) && !l2,
+      ultimate: (l2 && b(7)) || b(13), awaken: (l2 && b(5)) || b(12) || b(10),
+      lock: b(11), lockPrev: b(14), lockNext: b(15),
       pause: b(9), score: b(8) || b(17), left: b(14), right: b(15),
     };
     let any = !!(pad.lx || pad.ly || pad.rx || pad.ry);
@@ -1032,8 +1080,8 @@ const Input = (() => {
     if (!canvas) return null;
     const r = canvas.getBoundingClientRect();
     return {
-      x: ((mouse.cx - r.left) / r.width) * canvas.width,
-      y: ((mouse.cy - r.top) / r.height) * canvas.height,
+      x: ((mouse.cx - r.left) / r.width) * (canvas.logicalW || canvas.width),
+      y: ((mouse.cy - r.top) / r.height) * (canvas.logicalH || canvas.height),
     };
   }
 
@@ -1154,12 +1202,7 @@ const Sprites = (() => {
       { armL: A_DOWN, armR: A_DOWN, legL: L_STAND, legR: R_STAND },
       { by: 1, armL: { e: [0, 3], h: [-1, 5] }, armR: { e: [0, 3], h: [1, 5] }, legL: L_STAND, legR: R_STAND },
     ],
-    run: [
-      { lean: 2, armL: { e: [-3, 1], h: [-6, 2] }, armR: { e: [-4, 1], h: [-8, 2], back: true }, legL: { k: [2, 3], f: [4, 6] }, legR: { k: [-2, 2], f: [-4, 4] } },
-      { lean: 2, by: -1, armL: { e: [-3, 1], h: [-6, 1] }, armR: { e: [-4, 1], h: [-8, 1], back: true }, legL: { k: [1, 3], f: [1, 6] }, legR: { k: [0, 2], f: [-2, 3] } },
-      { lean: 2, armL: { e: [-3, 1], h: [-6, 2] }, armR: { e: [-4, 1], h: [-8, 2], back: true }, legL: { k: [-2, 2], f: [-4, 4] }, legR: { k: [2, 3], f: [4, 6] } },
-      { lean: 2, by: -1, armL: { e: [-3, 1], h: [-6, 1] }, armR: { e: [-4, 1], h: [-8, 1], back: true }, legL: { k: [0, 2], f: [-2, 3] }, legR: { k: [1, 3], f: [1, 6] } },
-    ],
+    run: makeRunCycle(8),
     jab: [{ lean: 1, armR: { e: [3, 1], h: [7, 1] }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [3, 6] } }],
     cross: [{ lean: 2, armL: { e: [4, 1], h: [9, 0], front: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [1, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } }],
     kick: [{ lean: -1, armL: { e: [-2, 0], h: [-4, -2] }, armR: { e: [2, 1], h: [4, 3] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, -1], f: [9, -1] } }],
@@ -1187,7 +1230,44 @@ const Sprites = (() => {
     raise: [{ armL: { e: [-1, -3], h: [1, -7] }, armR: { e: [1, -3], h: [-1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
     slam: [{ by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true }, armR: { e: [2, 3], h: [5, 6] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } }],
     victory: [{ armL: A_DOWN, armR: { e: [1, -3], h: [1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
+    // airborne
+    jump: [{ lean: 1, armL: { e: [-2, -2], h: [-3, -5] }, armR: { e: [2, -2], h: [3, -5] }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } }],
+    fall: [{ armL: { e: [-3, 0], h: [-5, -1] }, armR: { e: [3, 0], h: [5, -1] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 2], f: [2, 5] } }],
+    airpunch: [{ lean: 2, armR: { e: [4, 0], h: [8, 0] }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [2, 1], f: [1, 3] } }],
+    airkick: [{ lean: -1, armL: { e: [-2, -1], h: [-4, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [4, 1], f: [9, 2] } }],
+    dive: [{ lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [6, 7] } }],
+    // signatures
+    lunge: [{ by: 2, lean: 4, armR: { e: [5, 0], h: [10, 0] }, armL: { e: [-2, 1], h: [-5, 1], back: true }, legL: { k: [-3, 2], f: [-6, 5] }, legR: { k: [4, 2], f: [6, 6] } }],
+    spin: [
+      { lean: -1, armL: { e: [-3, 0], h: [-7, 0] }, armR: { e: [3, 0], h: [7, 0] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, 0], f: [8, 1] } },
+      { lean: 1, armL: { e: [-3, 0], h: [-7, -1] }, armR: { e: [3, 0], h: [7, -1] }, legL: { k: [-4, 0], f: [-8, 1] }, legR: { k: [0, 3], f: [1, 6] } },
+    ],
+    backkick: [{ lean: 2, armL: { e: [2, 1], h: [4, 3], front: true }, armR: { e: [2, 0], h: [5, -1] }, legL: { k: [-4, 0], f: [-9, -1] }, legR: { k: [0, 3], f: [1, 6] } }],
   };
+
+  // Parametric sprint: legs swing through contact / passing / push-off /
+  // recovery with knee lift, arms pump opposite the legs, body bobs twice per cycle.
+  function makeRunCycle(n) {
+    const frames = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * TAU;
+      const leg = (ph) => {
+        const fx = Math.cos(ph) * 4.5;
+        const lift = Math.max(0, -Math.sin(ph)) * 3.2;           // foot off the ground on the back-swing
+        const fy = Math.round(6 - lift);
+        const kx = Math.round(fx * 0.45 + 1 + (lift > 1 ? 1.5 : 0));
+        const ky = Math.round(3 - lift * 0.6);
+        return { k: [kx, ky], f: [Math.round(fx), fy] };
+      };
+      const arm = (ph, far) => {
+        const s = -Math.cos(ph);                                 // opposite to the same-side leg
+        return { e: [Math.round(s * 1.5), 2], h: [Math.round(s * 3), Math.round(4 - Math.abs(s) * 1.5)], back: far && s < 0 };
+      };
+      const by = Math.round(-Math.sin(t * 2) * 0.9);
+      frames.push({ lean: 1, by, legR: leg(t), legL: leg(t + Math.PI), armR: arm(t + Math.PI, true), armL: arm(t, false) });
+    }
+    return frames;
+  }
 
   // ---- hair masks (front view), origin (8,1), '#' base '+' light '-' dark ---
   const HAIR = {
@@ -1599,9 +1679,10 @@ const Sprites = (() => {
     const key = lookKey(look) + '|' + pose + '|' + frame + '|' + view;
     let c = cache.get(key);
     if (c) return c;
-    c = U.makeCanvas(SPR_W, SPR_H);
-    drawCharacter(c.getContext('2d'), look, pose, frame, view);
-    outline(c, '#120a18');
+    const base = U.makeCanvas(SPR_W, SPR_H);
+    drawCharacter(base.getContext('2d'), look, pose, frame, view);
+    outline(base, '#120a18');
+    c = epx2(base);
     cache.set(key, c);
     return c;
   }
@@ -1619,6 +1700,7 @@ const Sprites = (() => {
     ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, c.width, c.height);
+    c.lw = src.lw || src.width; c.lh = src.lh || src.height;
     tintCache.set(k, c);
     return c;
   }
@@ -1635,8 +1717,10 @@ const Sprites = (() => {
     if (c) return c;
     const src = get(look, 'idle', 0, 'F');
     const sx = 5, sy = 1, sw = 24, sh = 22;
-    c = U.makeCanvas(sw * scale, sh * scale);
-    c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw * scale, sh * scale);
+    // hi-res canvas; lw/lh give the logical size
+    c = U.makeCanvas(sw * scale * HIRES, sh * scale * HIRES);
+    c.getContext('2d').drawImage(src, sx * HIRES, sy * HIRES, sw * HIRES, sh * HIRES, 0, 0, c.width, c.height);
+    c.lw = sw * scale; c.lh = sh * scale;
     portraitCache.set(key, c);
     return c;
   }
@@ -2068,6 +2152,7 @@ const Art = (() => {
       case 'stonepile': s = rockCube(10, v, '#8a8a90'); break;
       default: s = crate(v);
     }
+    s = { c: epx2(s.c), ox: s.ox, oy: s.oy };
     cache.set(key, s);
     return s;
   }
@@ -2103,11 +2188,12 @@ const Art = (() => {
 // Draw a character-sized sprite so its feet anchor lands on (sx, sy).
 function blitSprite(ctx, canvas, sx, sy, flip) {
   sx = Math.round(sx); sy = Math.round(sy);
-  if (!flip) { ctx.drawImage(canvas, sx - SPR_OX, sy - SPR_OY); return; }
+  const w = canvas.lw || canvas.width, h = canvas.lh || canvas.height;
+  if (!flip) { ctx.drawImage(canvas, sx - SPR_OX, sy - SPR_OY, w, h); return; }
   ctx.save();
   ctx.translate(sx, 0);
   ctx.scale(-1, 1);
-  ctx.drawImage(canvas, -SPR_OX, sy - SPR_OY);
+  ctx.drawImage(canvas, -SPR_OX, sy - SPR_OY, w, h);
   ctx.restore();
 }
 
@@ -2752,6 +2838,11 @@ class Arena {
     // BFS distance from shore for every water tile (drives colour banding).
     const n = this.w * this.h;
     this.waterDepth = new Uint8Array(n);
+    this.nearWater = new Uint8Array(n);
+    for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) {
+      if (this.tiles[this.idx(i, j)] !== T_WATER) continue;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if (this.inBounds(i + di, j + dj)) this.nearWater[this.idx(i + di, j + dj)] = 1;
+    }
     const q = [];
     for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) {
       const k = this.idx(i, j);
@@ -2780,28 +2871,30 @@ class Arena {
   // ---- ground rendering ----------------------------------------------------------
   get originX() { return this.h * HALF_W; }
 
+  // The ground is baked at HIRES x logical resolution for finer texture detail.
   buildGround() {
-    const W = (this.w + this.h) * HALF_W, H = (this.w + this.h) * HALF_H + 8;
+    this.groundRes = HIRES;
+    const W = (this.w + this.h) * HALF_W * HIRES, H = ((this.w + this.h) * HALF_H + 8) * HIRES;
     this.ground = U.makeCanvas(W, H);
     this.gctx = this.ground.getContext('2d');
     this.gimg = this.gctx.createImageData(W, H);
-    this.renderGroundRect(0, 0, W, H);
+    this.renderGroundRect(0, 0, W / HIRES, H / HIRES);
   }
 
-  // Re-render a screen-space rectangle of the ground canvas.
-  renderGroundRect(x0, y0, w, h) {
-    const W = this.ground.width, H = this.ground.height;
-    x0 = U.clamp(Math.floor(x0), 0, W); y0 = U.clamp(Math.floor(y0), 0, H);
-    const x1 = U.clamp(Math.ceil(x0 + w), 0, W), y1 = U.clamp(Math.ceil(y0 + h), 0, H);
+  // Re-render a rectangle of the ground canvas (given in logical pixels).
+  renderGroundRect(lx0, ly0, lw, lh) {
+    const W = this.ground.width, H = this.ground.height, R = this.groundRes;
+    const x0 = U.clamp(Math.floor(lx0 * R), 0, W), y0 = U.clamp(Math.floor(ly0 * R), 0, H);
+    const x1 = U.clamp(Math.ceil((lx0 + lw) * R), 0, W), y1 = U.clamp(Math.ceil((ly0 + lh) * R), 0, H);
     const d = this.gimg.data, ox = this.originX;
     const out = U.hexToRgb(this.T.outside);
     for (let py = y0; py < y1; py++) {
       for (let px = x0; px < x1; px++) {
-        const a = (px - ox + 0.5) / HALF_W, b = (py + 0.5) / HALF_H;
+        const a = ((px + 0.5) / R - ox) / HALF_W, b = ((py + 0.5) / R) / HALF_H;
         const wx = (a + b) / 2, wy = (b - a) / 2;
         let c;
         if (wx < 0 || wy < 0 || wx >= this.w || wy >= this.h) {
-          const n = U.hash2(px >> 1, py >> 1, 99) * 10;
+          const n = U.hash2(px >> 2, py >> 2, 99) * 10;
           c = [out[0] + n, out[1] + n, out[2] + n];
         } else c = this.groundPixel(wx, wy, px, py);
         const k = (py * W + px) * 4;
@@ -2873,7 +2966,7 @@ class Arena {
     }
     c = [c[0], c[1], c[2]];
     // shoreline: darken land pixels right next to water
-    if (t !== T_WATER) {
+    if (t !== T_WATER && this.nearWater[k]) {
       const k2 = this.jitterTile(wx + 0.18, wy + 0.18), k3 = this.jitterTile(wx - 0.18, wy - 0.18);
       if (this.tiles[k2] === T_WATER || this.tiles[k3] === T_WATER) { c[0] *= 0.72; c[1] *= 0.72; c[2] *= 0.78; }
     }
@@ -3643,16 +3736,19 @@ const Combat = {
       const armored = t.hasArmor() && !h.armorBreak;
       let [kx, ky] = h.dirX !== undefined ? [h.dirX, h.dirY] : U.norm(t.x - sx, t.y - sy);
       if (kx === 0 && ky === 0) { kx = Math.cos(t.facing + Math.PI); ky = Math.sin(t.facing + Math.PI); }
-      const knock = (h.knock || 0) * (armored ? 0.15 : 1) * t.knockTaken();
+      // Brawlhalla-style: the more health you've lost, the farther hits send you.
+      const kScale = 1 + 0.75 * U.clamp(1 - t.hp / t.maxHp, 0, 1);
+      const knock = (h.knock || 0) * (armored ? 0.15 : 1) * t.knockTaken() * kScale;
       t.vx += kx * knock; t.vy += ky * knock;
       if (!armored) {
         let stun = h.stun !== undefined ? h.stun : 0.3;
         if (t.comboHits > 12) stun *= 0.5;
         if (h.launch && (t.z > 0 || h.launch > 0)) {
           const decay = Math.max(0.2, 1 - 0.14 * t.juggle);
-          if (t.z > 1) { t.vz = Math.max(t.vz, h.launch * 0.6 * decay); t.juggle++; }
-          else { t.vz = h.launch * decay; t.juggle = t.juggle || 0; }
-          t.airborne = true;
+          const lk = 1 + (kScale - 1) * 0.35;
+          if (t.z > 1) { t.vz = Math.max(t.vz, h.launch * 0.6 * decay * lk); t.juggle++; }
+          else { t.vz = h.launch * decay * lk; t.juggle = t.juggle || 0; }
+
         } else if (h.spike && t.z > 2) {
           t.vz = -420;
         } else if (t.z > 2) {
@@ -4028,11 +4124,22 @@ const COMBO = [
 ];
 const DASH_ATTACK = { pose: 'kick', wind: 0.05, act: 0.12, rec: 0.26, dmg: 24, range: 1.2, arc: 1.2, lunge: 8, knock: 3, launch: 220, stun: 0.6, dashAttack: true };
 const CHASE_SLAM = { pose: 'slam', wind: 0.05, act: 0.08, rec: 0.3, dmg: 42, range: 1.3, arc: 1.6, lunge: 0, knock: 2, spike: true, stun: 0.7 };
+// Directional lights (Brawlhalla-style): moving toward your target lunges in,
+// moving away throws a retreating spin kick. Both flow into the normal chain.
+const SIDE_LIGHT = { pose: 'lunge', wind: 0.07, act: 0.09, rec: 0.2, dmg: 22, range: 1.35, arc: 0.9, lunge: 8.5, knock: 2.4, stun: 0.42, side: true };
+const BACK_LIGHT = { pose: 'spin', wind: 0.06, act: 0.12, rec: 0.22, dmg: 20, range: 1.3, arc: Math.PI, lunge: -4.5, knock: 4.2, stun: 0.4, back: true };
+// Air string: punch, kick, then a spiking finisher.
+const AIR_COMBO = [
+  { pose: 'airpunch', wind: 0.05, act: 0.07, rec: 0.14, dmg: 18, range: 1.2, arc: 1.1, lunge: 3, knock: 1.2, stun: 0.4, air: true },
+  { pose: 'airkick', wind: 0.06, act: 0.07, rec: 0.16, dmg: 20, range: 1.3, arc: 1.2, lunge: 3, knock: 1.4, stun: 0.42, air: true },
+  { pose: 'dive', wind: 0.08, act: 0.08, rec: 0.26, dmg: 30, range: 1.3, arc: 1.3, lunge: 3.5, knock: 5, spike: true, stun: 0.65, air: true, finisher: true },
+];
 
 const EMPTY_INPUT = Object.freeze({
-  mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false,
-  dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false,
+  mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false,
+  dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false,
 });
+const JUMP_V = 300, DOUBLE_JUMP_V = 265;
 
 class Fighter {
   constructor(char, team, opts = {}) {
@@ -4059,7 +4166,7 @@ class Fighter {
     this.maxChakra = 100; this.chakra = 100;
     this.guard = 100; this.guardRegenDelay = 0;
     this.sub = 100; // substitution gauge (50 per use)
-    this.kunai = 3; this.kunaiRegen = 0;
+    this.kunai = 4; this.kunaiRegen = 0;
     this.awak = 0; this.ult = 0;
 
     this.jutsu = (char.jutsu || []).map((id) => (JUTSU[id] ? { id, def: JUTSU[id], cd: 0 } : null));
@@ -4272,7 +4379,7 @@ class Fighter {
       if (this.guardRegenDelay <= 0) this.guard = Math.min(100, this.guard + 30 * dt);
     }
     this.sub = Math.min(100, this.sub + 7 * dt);
-    if (this.kunai < 3) { this.kunaiRegen += dt; if (this.kunaiRegen >= 1.6) { this.kunaiRegen = 0; this.kunai++; } }
+    if (this.kunai < 4) { this.kunaiRegen += dt; if (this.kunaiRegen >= 1.3) { this.kunaiRegen = 0; this.kunai++; } }
     if (!this.isClone) this.ult = Math.min(100, this.ult + 0.3 * dt);
     if (m.regen) this.heal(m.regen * this.maxHp * dt);
     if (m.hpDrain && this.hp > 1) this.hp = Math.max(1, this.hp - m.hpDrain * this.maxHp * dt);
@@ -4316,7 +4423,7 @@ class Fighter {
   }
 
   bufferInput(inp) {
-    const order = [['ult', inp.ult], ['awaken', inp.awaken], ['dash', inp.dash], ['j0', inp.j[0]], ['j1', inp.j[1]], ['j2', inp.j[2]], ['j3', inp.j[3]], ['heavy', inp.heavyPressed], ['light', inp.light], ['kunai', inp.kunai]];
+    const order = [['ult', inp.ult], ['awaken', inp.awaken], ['dash', inp.dash], ['jump', inp.jump], ['j0', inp.j[0]], ['j1', inp.j[1]], ['j2', inp.j[2]], ['j3', inp.j[3]], ['heavy', inp.heavyPressed], ['light', inp.light], ['kunai', inp.kunai]];
     for (const [a, p] of order) if (p) { this.buf = { a, t: this.time }; break; }
     if (inp.block && !this.prevBlock) { this.blockGap = this.time - this.lastBlockPress; this.lastBlockPress = this.time; }
     this.prevBlock = inp.block;
@@ -4330,6 +4437,7 @@ class Fighter {
       case 'idle': case 'move': this.stNeutral(dt, inp); break;
       case 'attack': this.stAttack(dt, inp); break;
       case 'heavy': this.stHeavy(dt, inp); break;
+      case 'dive': this.stDive(dt, inp); break;
       case 'dash': this.stDash(dt, inp); break;
       case 'block': this.stBlock(dt, inp); break;
       case 'cast': this.stCast(dt, inp); break;
@@ -4365,19 +4473,50 @@ class Fighter {
     if (Math.abs(this.mvy) < 0.01) this.mvy = 0;
   }
 
+  get airborne() { return this.z > 1 || this.vz > 0; }
+
+  // Direction of the stick/keys relative to where we face (lock target / aim).
+  inputDir(inp) {
+    const m = Math.hypot(inp.mx, inp.my);
+    if (m < 0.3) return 'neutral';
+    const dot = (inp.mx * Math.cos(this.facing) + inp.my * Math.sin(this.facing)) / m;
+    return dot > 0.45 ? 'forward' : dot < -0.45 ? 'back' : 'neutral';
+  }
+
+  tryJump(inp) {
+    if (!(inp.jump || this.peekBuf('jump', 0.12))) return false;
+    if (this.st.root > 0) return false;
+    const grounded = this.z <= 0.5 && this.vz <= 0;
+    if (grounded) { this.jumps = 1; this.vz = JUMP_V; this.z = Math.max(this.z, 0.6); FX.dust(this.x, this.y, 4); }
+    else if ((this.jumps || 1) < 2) {
+      this.jumps = 2; this.vz = DOUBLE_JUMP_V;
+      FX.ring(this.x, this.y, 0.2, '#ffffff', 0.25, 3);
+      FX.poof(this.x, this.y, 3);
+    } else return false;
+    this.takeBuf('jump', 0.12);
+    SFX.playAt('dash', this.x, this.y, 0.4);
+    return true;
+  }
+
   stNeutral(dt, inp) {
+    const air = this.airborne;
     if (this.tryUlt(inp) || this.tryAwaken(inp) || this.tryDash(inp) || this.tryJutsu(inp)) return;
-    if (this.takeBuf('heavy') || inp.heavyPressed) { this.startHeavy(); return; }
+    this.tryJump(inp);
+    if (this.takeBuf('heavy') || inp.heavyPressed) { if (this.airborne) this.startDive(); else this.startHeavy(); return; }
     if (this.takeBuf('light')) {
+      if (this.airborne) { this.startAttack(0, AIR_COMBO[0]); this.airStep = 0; return; }
       const seq = this.comboSeq();
-      if (this.time - (this.comboResumeT || -9) < 0.4 && this.comboResume < seq.length) this.startAttack(this.comboResume);
-      else this.startAttack(0);
+      const resuming = this.time - (this.comboResumeT || -9) < 0.4 && this.comboResume < seq.length;
+      const dir = this.inputDir(inp);
+      if (!resuming && dir === 'forward') this.startAttack(0, SIDE_LIGHT);
+      else if (!resuming && dir === 'back') this.startAttack(0, BACK_LIGHT);
+      else this.startAttack(resuming ? this.comboResume : 0);
       return;
     }
     if (this.takeBuf('kunai')) { this.startThrow(); return; }
-    if (inp.block) { this.startBlock(); return; }
-    if (inp.charge && this.chakra < this.maxChakra) { this.setState('charge'); return; }
-    this.walk(inp);
+    if (!air && inp.block) { this.startBlock(); return; }
+    if (!air && inp.charge && this.chakra < this.maxChakra) { this.setState('charge'); return; }
+    this.walk(inp, air ? 0.9 : 1);
     const moving = Math.hypot(inp.mx, inp.my) > 0.1;
     if (inp.ax !== null && inp.ax !== undefined) this.faceAim(this.isPlayer ? 0 : 14 * dt);
     else if (moving) this.facing = Math.atan2(inp.my, inp.mx);
@@ -4389,6 +4528,8 @@ class Fighter {
 
   // Soft lock-on: turn toward a nearby enemy roughly in front.
   softLock(range = 2.4, arc = 1.25) {
+    const L = this.lock;
+    if (L && L.alive && U.dist(this.x, this.y, L.x, L.y) < range * 1.5) { this.facing = Math.atan2(L.y - this.y, L.x - this.x); return L; }
     let best = null, bd = range;
     for (const f of W.fighters) {
       if (!f.alive || !Combat.enemies(this, f) || f.st.stealth > 0) continue;
@@ -4424,14 +4565,25 @@ class Fighter {
     // lunge (stop short of the target so we don't pass through)
     if (t < a.wind + a.act) {
       let lunge = a.lunge;
-      if (this.lockTarget && U.dist(this.x, this.y, this.lockTarget.x, this.lockTarget.y) < 0.75) lunge *= 0.1;
+      if (lunge > 0 && this.lockTarget && U.dist(this.x, this.y, this.lockTarget.x, this.lockTarget.y) < 0.75) lunge *= 0.1;
       this.mvx = Math.cos(this.facing) * lunge; this.mvy = Math.sin(this.facing) * lunge;
-      if (Math.random() < 0.5) FX.dust(this.x, this.y, 1);
+      if (a.air) this.vz = Math.max(this.vz, a.spike ? -80 : 40); // hang in the air while striking
+      else if (Math.random() < 0.5) FX.dust(this.x, this.y, 1);
     } else { this.mvx *= 0.6; this.mvy *= 0.6; }
     if (t >= a.wind && t < a.wind + a.act + 0.02) this.meleeCheck(a);
     const endAct = a.wind + a.act;
     if (t >= endAct) {
       if (this.tryDash(inp)) return;
+      // jump-cancel a connected hit into an air string
+      if ((this.atkConnected || t > endAct + 0.1) && this.tryJump(inp)) { this.setState('idle'); return; }
+      if (a.air && !a.finisher && this.atkQueued && t >= endAct + 0.02 && this.airborne) {
+        this.takeBuf('light', 0.3);
+        this.airStep = (this.airStep || 0) + 1;
+        this.startAttack(0, AIR_COMBO[Math.min(this.airStep, AIR_COMBO.length - 1)]);
+        return;
+      }
+      if (a.air && (inp.heavyPressed || this.peekBuf('heavy')) && this.airborne) { this.takeBuf('heavy'); this.startDive(); return; }
+      if ((a.side || a.back) && this.atkQueued && t >= endAct + 0.03) { this.takeBuf('light', 0.3); this.startAttack(1); return; }
       if (this.atkConnected || t > endAct + 0.08) { if (this.tryJutsu(inp)) return; if (this.tryUlt(inp)) return; }
       const seq = this.comboSeq();
       // air chase: after the launcher, press attack again to leap after them (Taijutsu Lv4+)
@@ -4443,13 +4595,55 @@ class Fighter {
         if (a.dashAttack) { this.takeBuf('light', 0.3); this.startAttack(0); return; }
         if (this.comboStep < seq.length - 1) { this.takeBuf('light', 0.3); this.startAttack(this.comboStep + 1); return; }
       }
-      if (inp.heavyPressed && this.atkConnected) { this.startHeavy(); return; }
+      if (inp.heavyPressed && !a.air) { this.startHeavy(); return; }
     }
     if (t >= endAct + a.rec) {
       this.comboResumeT = this.time;
-      this.comboResume = a.finisher || a.chase ? 99 : a.dashAttack ? 0 : this.comboStep + 1;
+      this.comboResume = a.finisher || a.chase || a.air ? 99 : a.dashAttack ? 0 : (a.side || a.back) ? 1 : this.comboStep + 1;
       this.setState('idle');
     }
+  }
+
+  // Air heavy: plunge down at an angle, spiking anyone in the way, then
+  // shock-wave on landing.
+  startDive() {
+    this.cancelAction();
+    this.setState('dive');
+    this.diveHit = new Set();
+    if (this.inp && this.inp.ax !== null) this.faceAim();
+    this.softLock(4);
+    this.vz = Math.min(this.vz, 60);
+    SFX.playAt('swing', this.x, this.y, 0.9);
+  }
+
+  stDive(dt) {
+    if (this.stateT > 0.08) this.vz = Math.min(this.vz, -560);
+    this.mvx = Math.cos(this.facing) * 6.5; this.mvy = Math.sin(this.facing) * 6.5;
+    FX.add({ x: this.x, y: this.y, z: this.z + 10, life: 0.2, color: ['#ffffff', '#fff2c0'], size: 2, kind: 'glow', add: true });
+    for (const f of W.fighters) {
+      if (!f.alive || this.diveHit.has(f) || !Combat.enemies(this, f)) continue;
+      if (U.dist(this.x, this.y, f.x, f.y) > 0.9 + f.radius || Math.abs(f.z - this.z) > 34) continue;
+      this.diveHit.add(f);
+      Combat.hit(f, { src: this, kind: 'melee', dmg: 26 * (1 + 0.08 * (this.taiLvl() - 1)), knock: 2, spike: true, stun: 0.6, ability: 'taijutsu', guardDmg: 45, element: this.mod.meleeElement });
+    }
+    if (this.stateT > 1.2) this.setState('idle');
+  }
+
+  landDive() {
+    const r = 1.5;
+    FX.ring(this.x, this.y, 0.3, '#ffe9b0', 0.35, 6, 2);
+    FX.dust(this.x, this.y, 12);
+    W.arena.addStain(this.x, this.y, 0.55, 'crater');
+    W.shakeAt(this.x, this.y, 5);
+    SFX.playAt('hitHeavy', this.x, this.y, 0.8);
+    for (const f of Combat.enemiesInRadius(this, this.x, this.y, r)) {
+      if (f.z > 20) continue;
+      const [nx, ny] = U.norm(f.x - this.x, f.y - this.y);
+      Combat.hit(f, { src: this, kind: 'aoe', dmg: 30, knock: 5, launch: 190, stun: 0.6, dirX: nx, dirY: ny, ability: 'taijutsu', sx: this.x, sy: this.y });
+    }
+    W.arena.damageRadius(this.x, this.y, r, 35, null, this);
+    this.recoverT = 0.28; this.recoverPose = 'slam';
+    this.setState('recover');
   }
 
   meleeCheck(a) {
@@ -4461,7 +4655,8 @@ class Fighter {
       if (d > reach + f.radius) continue;
       const ang = Math.atan2(f.y - this.y, f.x - this.x);
       if (d > 0.35 && Math.abs(U.angDiff(this.facing, ang)) > arc) continue;
-      if (f.z - this.z > 46) continue;
+      const dz = f.z - this.z;
+      if (dz > 46 || dz < (a.air ? -72 : -46)) continue;
       this.atkHit.add(f);
       const taiL = this.taiLvl();
       const res = Combat.hit(f, {
@@ -4512,13 +4707,53 @@ class Fighter {
       if ((!inp.heavy && this.stateT >= 0.16) || this.stateT >= 1.1) {
         this.heavyReleased = true;
         this.heavyT = 0;
-        this.softLock(2.4);
+        this.heavyKind = this.inputDir(inp); // signature depends on direction held at release
+        this.softLock(this.heavyKind === 'forward' ? 4.5 : 2.4);
+        this.heavyHit = new Set();
         SFX.playAt('swing', this.x, this.y, 0.9);
       }
       return;
     }
     this.heavyT += dt;
     const c = this.heavyCharge;
+    const taiL = this.taiLvl();
+    const tk = 1 + 0.08 * (taiL - 1);
+    if (this.heavyKind === 'forward') {
+      // Signature: rocket punch that carries through everyone in its path
+      if (this.heavyT < 0.24) {
+        const sp = 11 + c * 4;
+        this.mvx = Math.cos(this.facing) * sp; this.mvy = Math.sin(this.facing) * sp;
+        FX.afterimage(this.spriteCanvas(), this.x, this.y, this.z, this.flip, 0.18, 0.35);
+        for (const f of W.fighters) {
+          if (!f.alive || this.heavyHit.has(f) || !Combat.enemies(this, f) || Math.abs(f.z - this.z) > 40) continue;
+          if (U.dist(this.x, this.y, f.x, f.y) > 0.8 + f.radius) continue;
+          this.heavyHit.add(f);
+          Combat.hit(f, { src: this, kind: 'melee', dmg: (30 + 45 * c) * tk, knock: 8 + 6 * c, stun: 0.6 + 0.2 * c, guardDmg: 50 + 70 * c, guardBreak: c >= 0.99, ability: 'taijutsu', element: this.mod.meleeElement, dirX: Math.cos(this.facing), dirY: Math.sin(this.facing) });
+        }
+        const pb = W.arena.pointBlocked(this.x + Math.cos(this.facing) * 0.6, this.y + Math.sin(this.facing) * 0.6, 10);
+        if (pb && pb.b) W.arena.damageBlock(pb.b.i, pb.b.j, 40 + 60 * c, this.mod.meleeElement, this);
+      } else { this.mvx *= 0.6; this.mvy *= 0.6; }
+      if (this.heavyT > 0.24 + 0.3) this.setState('idle');
+      return;
+    }
+    if (this.heavyKind === 'back') {
+      // Signature: two-hit cyclone kick all around you
+      this.mvx *= 0.8; this.mvy *= 0.8;
+      for (const hitAt of [0.05, 0.2]) {
+        if (this.heavyT >= hitAt && this.heavyT - dt < hitAt) {
+          for (const f of Combat.enemiesInRadius(this, this.x, this.y, 1.55 * this.mod.reach)) {
+            if (Math.abs(f.z - this.z) > 44) continue;
+            const [nx, ny] = U.norm(f.x - this.x, f.y - this.y);
+            Combat.hit(f, { src: this, kind: 'melee', dmg: (18 + 26 * c) * tk, knock: hitAt > 0.1 ? 6 + 5 * c : 1, launch: hitAt > 0.1 ? 140 : 0, stun: 0.5, dirX: nx, dirY: ny, guardDmg: 40 + 40 * c, ability: 'taijutsu', element: this.mod.meleeElement });
+          }
+          FX.ring(this.x, this.y, 0.3, '#ffffff', 0.25, 5);
+          FX.wind(this.x, this.y, 12, 6);
+          Combat.coneBlocks(this.x, this.y, this.facing, 1.5, Math.PI, 20 + 40 * c, null, this);
+        }
+      }
+      if (this.heavyT > 0.55) this.setState('idle');
+      return;
+    }
     if (this.heavyT < 0.1) { this.mvx = Math.cos(this.facing) * (4 + c * 3); this.mvy = Math.sin(this.facing) * (4 + c * 3); }
     else { this.mvx *= 0.7; this.mvy *= 0.7; }
     if (this.heavyT >= 0.05 && !this.heavyDone) {
@@ -4526,7 +4761,7 @@ class Fighter {
       const taiL = this.taiLvl();
       const reach = 1.35 * this.mod.reach, arc = 1.1 * this.mod.arcMult;
       Combat.cone(this, this.x, this.y, this.facing, reach, arc, {
-        kind: 'melee', dmg: (32 + 48 * c) * (1 + 0.08 * (taiL - 1)), knock: 5 + 6 * c, launch: c >= 0.5 ? 170 + 130 * c : 0,
+        kind: 'melee', dmg: (32 + 48 * c) * tk, knock: 3 + 4 * c, launch: 230 + 130 * c,
         stun: 0.5 + 0.3 * c, guardDmg: 45 + 80 * c, guardBreak: c >= 0.99, unblockable: taiL >= 5 && c >= 0.99,
         ability: 'taijutsu', element: this.mod.meleeElement, status: this.mod.meleeStatus,
       }, (f) => f.z - this.z < 46);
@@ -4760,26 +4995,42 @@ class Fighter {
   // ---- kunai --------------------------------------------------------------------------
   startThrow() {
     if (this.kunai < 1) { if (this.isPlayer) SFX.play('tick', 0.5); return; }
-    this.kunai--;
     this.setState('throw');
     this.thrown = false;
     if (this.inp && this.inp.ax !== null) this.faceAim();
   }
+  // Tap = kunai. Hold = charge a big piercing shuriken (costs 2 ammo).
   stThrow(dt, inp) {
-    this.walk(inp, 0.5);
-    if (this.stateT >= 0.06 && !this.thrown) {
+    this.walk(inp, this.airborne ? 0.9 : 0.5);
+    if (!this.thrown) {
+      this.faceAim(this.isPlayer ? 0 : 12 * dt);
+      const charging = inp.kunaiHeld && this.stateT < 0.7 && this.kunai >= 2;
+      if (charging) {
+        if (this.stateT > 0.28 && Math.random() < 0.5) FX.spark(this.x + Math.cos(this.facing) * 0.3, this.y + Math.sin(this.facing) * 0.3, this.z + 18, ['#ffffff', '#cfd6e2'], 1, 2);
+        return;
+      }
       this.thrown = true;
-      this.faceAim();
+      this.throwAt = this.stateT;
+      const big = this.stateT >= 0.28 && this.kunai >= 2;
+      this.kunai -= big ? 2 : 1;
       const a = this.facing;
-      Combat.projectile({
-        src: this, x: this.x + Math.cos(a) * 0.3, y: this.y + Math.sin(a) * 0.3, z: 14,
-        vx: Math.cos(a) * 17, vy: Math.sin(a) * 17, radius: 0.22, life: 0.62, dmg: 12, knock: 1.2, stun: 0.24,
-        kind: 'kunai', clash: 0.5, blockDmg: 4, ability: 'kunai', size: 2, explodeOnExpire: false, sfx: 'hit',
-      });
-      SFX.playAt('kunai', this.x, this.y, 0.6);
+      const z = 14 + this.z;
+      const t = this.lock && this.lock.alive ? this.lock : null;
+      const dist = t ? Math.max(1.5, U.dist(this.x, this.y, t.x, t.y)) : 5;
+      const sp = big ? 15 : 17;
+      const o = {
+        src: this, x: this.x + Math.cos(a) * 0.3, y: this.y + Math.sin(a) * 0.3, z,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, explodeOnExpire: false, ability: 'kunai',
+      };
+      if (this.z > 4) { o.gravity = 1; o.vz = -(this.z - (t ? t.z : 0)) * sp / dist; } // aim down from the air
+      if (big) Object.assign(o, { kind: 'shuriken', size: 6, radius: 0.42, life: 0.8, dmg: 30, knock: 5.5, stun: 0.5, pierce: 2, clash: 1.5, blockDmg: 40, sfx: 'hitHeavy' });
+      else Object.assign(o, { kind: 'kunai', size: 2, radius: 0.22, life: 0.62, dmg: 12, knock: 1.2, stun: 0.24, clash: 0.5, blockDmg: 4, sfx: 'hit' });
+      Combat.projectile(o);
+      SFX.playAt(big ? 'wind' : 'kunai', this.x, this.y, 0.6);
+      return;
     }
-    if (this.stateT > 0.1 && this.tryDash(inp)) return;
-    if (this.stateT >= 0.2) this.setState('idle');
+    if (this.stateT - this.throwAt > 0.05 && this.tryDash(inp)) return;
+    if (this.stateT - this.throwAt >= 0.14) this.setState('idle');
   }
 
   // ---- charging chakra ------------------------------------------------------------------
@@ -5021,6 +5272,10 @@ class Fighter {
     let dx = (this.vx + this.mvx) * dt, dy = (this.vy + this.mvy) * dt;
     const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.18));
     this._wallHit = false;
+    // launched fighters leave a smoke trail
+    if ((this.state === 'hitstun' || this.state === 'air' || this.dead) && Math.hypot(this.vx, this.vy) > 6.5 && Math.random() < 0.7) {
+      FX.add({ x: this.x, y: this.y, z: this.z + 12, life: 0.4, color: ['#ffffff', '#d8d8dc', '#98989f'], size: 2.5, grow: 3, kind: 'smoke', alpha: 0.7 });
+    }
     for (let s = 0; s < n; s++) {
       this.x += dx / n; this.y += dy / n;
       const hit = A.resolveCircle(this, this.radius);
@@ -5066,7 +5321,11 @@ class Fighter {
   }
 
   onLand(vz) {
+    this.jumps = 0;
     if (this.dead) { FX.dust(this.x, this.y, 5); return; }
+    if (this.state === 'dive') { this.landDive(); return; }
+    if (this.state === 'attack' && this.atk && this.atk.air) { FX.dust(this.x, this.y, 3); this.recoverT = 0.1; this.recoverPose = 'charge'; this.setState('recover'); return; }
+    if (this.isNeutral() && vz < -150) FX.dust(this.x, this.y, 3);
     if (this.state === 'air') {
       if (vz < -380) {
         // spiked into the ground: bounce once
@@ -5118,10 +5377,16 @@ class Fighter {
   poseFrame() {
     const t = this.time;
     switch (this.state) {
-      case 'idle': return ['idle', Math.floor(t * 2.2) % 2];
-      case 'move': return ['run', Math.floor(this.animT * 3) % 4];
-      case 'attack': return [this.stateT * this.atkSpeed < this.atk.wind * 0.5 && !this.atk.chase ? 'idle' : this.atk.pose, 0];
-      case 'heavy': return [this.heavyReleased ? 'palm' : 'heavyWind', 0];
+      case 'idle': case 'move':
+        if (this.z > 1) return [this.vz > 0 ? 'jump' : 'fall', 0];
+        return this.state === 'idle' ? ['idle', Math.floor(t * 2.2) % 2] : ['run', Math.floor(this.animT * 7) % 8];
+      case 'attack': return [this.stateT * this.atkSpeed < this.atk.wind * 0.5 && !this.atk.chase ? (this.atk.air ? 'jump' : 'idle') : this.atk.pose, this.atk.back ? Math.floor(this.stateT * 14) % 2 : 0];
+      case 'heavy':
+        if (!this.heavyReleased) return ['heavyWind', 0];
+        if (this.heavyKind === 'forward') return ['lunge', 0];
+        if (this.heavyKind === 'back') return ['spin', Math.floor(this.heavyT * 12) % 2];
+        return ['uppercut', 0];
+      case 'dive': return ['dive', 0];
       case 'dash': return ['dash', 0];
       case 'block': return ['block', 0];
       case 'cast': return ['seal', Math.floor(this.stateT * 12) % 2];
@@ -5624,6 +5889,7 @@ defJutsu({
     Combat.zone({
       src: f, x: p.x, y: p.y, r, dur: 5, tickEvery: 0.25, acc2: 0,
       onTick(e, z) {
+        if (e.z > 12) return; // jumping over the swamp
         e.applyStatus({ slow: { t: 0.4, amt: 0.55 } }, f);
         z.acc2 += 0.25;
         if (Math.random() < 0.5) Combat.hit(e, { src: f, dmg: 6 * D(L), element: 'earth', kind: 'dot', ability: 'mudswamp' });
@@ -6164,6 +6430,145 @@ defJutsu({
   },
 });
 
+// ======================= MORE PROJECTILES ==================================
+defJutsu({
+  id: 'firebomb', name: 'Blossom Firebomb', element: 'fire', cost: 20, cd: 6, cast: 0.2, icon: 'bomb', pose: 'throw',
+  desc: 'Lob a blazing bomb that bursts on landing and scatters a ring of fireballs.',
+  mastery: 'Lv5: Scatters twice as many fireballs.', ai: { min: 2.5, max: 8, kind: 'aoe' },
+  use(f, L) {
+    const p = f.aimPoint(8, 2);
+    const T = 0.55 + p.dist * 0.03;
+    Combat.projectile({
+      src: f, x: f.x, y: f.y, z: 16 + f.z, vx: (p.x - f.x) / T, vy: (p.y - f.y) / T, vz: (0 - 16 - f.z) / T + 0.5 * 600 * T, gravity: 600,
+      kind: 'fireball', element: 'fire', size: 5, radius: 0.4, life: 3, dmg: 20 * D(L), knock: 3, stun: 0.4, ability: 'firebomb', clash: 1.5, reflectable: false, trail: TRAIL.fire,
+      explode: { r: 1.3, dmg: 38 * D(L), knock: 5, launch: 150, status: { burn: { t: 3, dps: 12 } } },
+      onImpact(pr) {
+        const n = L >= 5 ? 12 : 6;
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * TAU;
+          Combat.projectile({ src: f, x: pr.x, y: pr.y, z: 10, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, kind: 'flower', element: 'fire', size: 3, radius: 0.3, life: 0.45, dmg: 14 * D(L), knock: 2.5, stun: 0.3, status: { burn: { t: 2, dps: 10 } }, ability: 'firebomb', clash: 0.5, blockDmg: 10, trail: TRAIL.fire, explodeOnExpire: false });
+        }
+      },
+    });
+    SFX.playAt('fire', f.x, f.y, 0.7);
+  },
+});
+
+defJutsu({
+  id: 'watershark', name: 'Water Shark Missile', element: 'water', cost: 22, cd: 7, cast: 0.3, icon: 'shark',
+  desc: 'Launch a ravenous water shark that homes in, chomps through the first enemy and soaks them.',
+  mastery: 'Lv5: Two sharks.', ai: { min: 2, max: 10, kind: 'proj' },
+  use(f, L, aim) {
+    const n = L >= 5 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      shoot(f, aim.ang + (i - (n - 1) / 2) * 0.4, 10, {
+        kind: 'dragon', cols: ['#ffffff', '#8fd0ff', '#2f7ad0', '#123a78'], element: 'water', size: 5, radius: 0.5, life: 1.4, histLen: 6,
+        dmg: 62 * D(L), knock: 6, launch: 160, stun: 0.6, homing: 2.6, status: { wet: 6 }, ability: 'watershark', clash: 2, blockDmg: 40,
+        trail(p, dt) { TRAIL.hist(p); TRAIL.water(p, dt); },
+        onImpact(p) { FX.splash(p.x, p.y, 14, 1.2); W.arena.wetRadius(p.x, p.y, 1.2, 6); SFX.playAt('splash', p.x, p.y); },
+      });
+    }
+    SFX.playAt('water', f.x, f.y, 0.8);
+  },
+});
+
+defJutsu({
+  id: 'rockshot', name: 'Stone Shotgun', element: 'earth', cost: 16, cd: 5, cast: 0.15, icon: 'shotgun', pose: 'release',
+  desc: 'Blast a spray of jagged stones at close range. Devastating point-blank, blows enemies back.',
+  mastery: 'Lv5: More stones, wider spray.', ai: { min: 0.5, max: 4.5, kind: 'melee' },
+  use(f, L, aim) {
+    const n = L >= 5 ? 10 : 7, spread = L >= 5 ? 0.6 : 0.45;
+    for (let i = 0; i < n; i++) {
+      shoot(f, aim.ang + (i / (n - 1) - 0.5) * spread * 2 + U.rand(-0.05, 0.05), U.rand(12, 15), {
+        kind: 'rock', element: 'earth', size: 2, radius: 0.28, life: U.rand(0.3, 0.38), dmg: 13 * D(L), knock: 3.2, stun: 0.3,
+        ability: 'rockshot', clash: 0.4, blockDmg: 18, explodeOnExpire: false, reflectable: false, sfx: 'hit',
+      });
+    }
+    FX.debris(f.x + Math.cos(aim.ang) * 0.5, f.y + Math.sin(aim.ang) * 0.5, 12, MATERIALS.earth.colors, 6, 0.8);
+    SFX.playAt('earth', f.x, f.y, 0.6);
+    f.vx -= Math.cos(aim.ang) * 3; f.vy -= Math.sin(aim.ang) * 3; // recoil
+  },
+});
+
+defJutsu({
+  id: 'windrang', name: 'Gale Boomerang', element: 'wind', cost: 16, cd: 5, cast: 0.15, icon: 'boomerang', pose: 'throw',
+  desc: 'Hurl a spinning wind blade that flies out, then curves back to you, cutting on both passes.',
+  mastery: 'Lv5: Throws two boomerangs.', ai: { min: 2, max: 7, kind: 'proj' },
+  use(f, L, aim) {
+    const n = L >= 5 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      shoot(f, aim.ang + (i - (n - 1) / 2) * 0.22, 13, {
+        kind: 'shuriken', element: 'wind', size: 6, radius: 0.45, life: 1.6, dmg: 26 * D(L), knock: 2.5, stun: 0.4, pierce: 99, ability: 'windrang',
+        clash: 1, blockDmg: 30, pierceBlocks: true, explodeOnExpire: false, reflectable: false, trail: TRAIL.wind,
+        onUpdate(p, dt) {
+          if (p.t > 0.42 && !p.back) { p.back = true; p.hitSet = new Set(); }
+          if (p.back) {
+            if (!f.alive) { p.dead = true; return; }
+            const [nx, ny] = U.norm(f.x - p.x, f.y - p.y);
+            p.vx += (nx * 15 - p.vx) * Math.min(1, dt * 6); p.vy += (ny * 15 - p.vy) * Math.min(1, dt * 6);
+            if (U.dist(p.x, p.y, f.x, f.y) < 0.5) p.dead = true;
+          }
+        },
+      });
+    }
+    SFX.playAt('wind', f.x, f.y, 0.7);
+  },
+});
+
+defJutsu({
+  id: 'railbolt', name: 'Lightning Rail', element: 'lightning', cost: 22, cd: 7, cast: 0.35, icon: 'rail', pose: 'release',
+  desc: 'Snipe a piercing bolt of lightning across the whole screen after a split-second charge line.',
+  mastery: 'Lv5: Faster charge, heavier hit.', ai: { min: 3, max: 11, kind: 'proj' },
+  use(f, L, aim) {
+    const len = 11, ang = aim.ang;
+    const delay = L >= 5 ? 0.12 : 0.22;
+    Combat.hazard({
+      layer: 1,
+      update() {
+        if (this.t >= delay && !this.fired) {
+          this.fired = true;
+          const x0 = f.x, y0 = f.y, x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len;
+          Combat.line(f, x0, y0, x1, y1, 0.45, { kind: 'proj', dmg: (L >= 5 ? 82 : 66) * D(L), element: 'lightning', knock: 5, stun: 0.5, status: { para: 0.25 }, ability: 'railbolt', dirX: Math.cos(ang), dirY: Math.sin(ang) }, new Set());
+          Combat.lineBlocks(x0, y0, x1, y1, 0.3, 40, 'lightning', f);
+          this.x0 = x0; this.y0 = y0; this.x1 = x1; this.y1 = y1;
+          SFX.playAt('thunder', f.x, f.y, 0.6);
+          W.shakeAt(f.x, f.y, 4);
+        }
+        if (this.t > delay + 0.2) this.dead = true;
+      },
+      draw(ctx, cam) {
+        if (!this.fired) {
+          const [ax, ay] = DF.sp(f.x, f.y, 14, cam), [bx, by] = DF.sp(f.x + Math.cos(ang) * len, f.y + Math.sin(ang) * len, 14, cam);
+          ctx.fillStyle = 'rgba(160,200,255,0.55)'; PX.line(ctx, ax, ay, bx, by, 1);
+          return;
+        }
+        const [ax, ay] = DF.sp(this.x0, this.y0, 14, cam), [bx, by] = DF.sp(this.x1, this.y1, 14, cam);
+        DF.bolt(ctx, ax, ay, bx, by, '#5f7aff', '#ffffff', 4, 14, 3);
+      },
+    });
+  },
+});
+
+defJutsu({
+  id: 'shurikenstorm', name: 'Shuriken Storm', element: 'shinobi', cost: 18, cd: 6, cast: 0.1, icon: 'shuriken', pose: 'throw',
+  desc: 'Fire three rapid volleys of spinning shuriken while you keep moving.',
+  mastery: 'Lv5: Five volleys.', ai: { min: 1.5, max: 8, kind: 'proj' },
+  use(f, L) {
+    const volleys = L >= 5 ? 5 : 3;
+    f.startChannel({
+      dur: volleys * 0.14 + 0.05, move: 0.6, turn: 6, pose: 'throw', acc: 0.14, n: 0,
+      tick(f, dt, c) {
+        c.acc += dt;
+        if (c.acc >= 0.14 && c.n < volleys) {
+          c.acc = 0; c.n++;
+          for (const o of [-0.16, 0, 0.16]) shoot(f, f.facing + o, 16, { kind: 'shuriken', size: 3, radius: 0.25, life: 0.6, dmg: 11 * D(L), knock: 1.5, stun: 0.28, ability: 'shurikenstorm', clash: 0.5, blockDmg: 8, explodeOnExpire: false });
+          SFX.playAt('kunai', f.x, f.y, 0.5);
+        }
+      },
+    });
+  },
+});
+
 const JUTSU_LIST = () => Object.values(JUTSU);
 
 </script>
@@ -6488,28 +6893,28 @@ defUlt({
 const PRESETS = [
   { id: 'p_renji', name: 'Renji Akabane', affinity: 'fire',
     look: { skin: '#ffe0bd', hair: '#d8352a', hairStyle: 'spiky', eyes: '#2a2a38', outfit: '#2a2a36', pants: '#1e1e26', cloth: '#b8322a', headband: 'forehead', extra: 'scarf' },
-    jutsu: ['fireball', 'blazerush', 'flamepillar', 'firering'], awakening: 'crimson', ultimate: 'inferno' },
+    jutsu: ['fireball', 'blazerush', 'flamepillar', 'firebomb'], awakening: 'crimson', ultimate: 'inferno' },
   { id: 'p_suiren', name: 'Suiren Kawano', affinity: 'water',
     look: { skin: '#f3d2c1', hair: '#6ec6ff', hairStyle: 'long', eyes: '#2e6bd6', outfit: '#1f7a7a', pants: '#1f3a6a', cloth: '#2a4fd6', headband: 'forehead', extra: 'none' },
-    jutsu: ['waterdragon', 'aquawhip', 'waterprison', 'mist'], awakening: 'sage', ultimate: 'tsunami' },
+    jutsu: ['waterdragon', 'aquawhip', 'watershark', 'waterprison'], awakening: 'sage', ultimate: 'tsunami' },
   { id: 'p_gando', name: 'Gando Iwaki', affinity: 'earth',
     look: { skin: '#c98b5a', hair: '#5a3a22', hairStyle: 'short', eyes: '#8a4b1f', outfit: '#8a6a3a', pants: '#4a3a2a', cloth: '#3f6b3a', headband: 'forehead', extra: 'none' },
-    jutsu: ['rockspikes', 'earthwall', 'boulder', 'stoneskin'], awakening: 'spirit', ultimate: 'meteor' },
+    jutsu: ['rockspikes', 'rockshot', 'boulder', 'earthwall'], awakening: 'spirit', ultimate: 'meteor' },
   { id: 'p_fuuka', name: 'Fuuka Kazehana', affinity: 'wind',
     look: { skin: '#ffe0bd', hair: '#4f9e4a', hairStyle: 'pony', eyes: '#3aa55d', outfit: '#d8d0c0', pants: '#2d4a3a', cloth: '#3f6b3a', headband: 'neck', extra: 'none' },
-    jutsu: ['windblade', 'gale', 'cyclone', 'windstep'], awakening: 'beast', ultimate: 'shuriken' },
+    jutsu: ['windblade', 'windrang', 'cyclone', 'windstep'], awakening: 'beast', ultimate: 'shuriken' },
   { id: 'p_raiden', name: 'Raiden Kaminari', affinity: 'lightning',
     look: { skin: '#f3d2c1', hair: '#e8e8f0', hairStyle: 'wild', eyes: '#2a2a38', outfit: '#2d4a7a', pants: '#1f3a6a', cloth: '#2a2a36', headband: 'forehead', extra: 'mask' },
-    jutsu: ['lance', 'chain', 'hound', 'thunderbolt'], awakening: 'curse', ultimate: 'kirin' },
+    jutsu: ['lance', 'railbolt', 'hound', 'thunderbolt'], awakening: 'curse', ultimate: 'kirin' },
   { id: 'p_kage', name: 'Kage Kurosawa', affinity: 'shinobi',
     look: { skin: '#ffe0bd', hair: '#2b2b3a', hairStyle: 'hood', eyes: '#b58cff', outfit: '#5b5b66', pants: '#1e1e26', cloth: '#2a2a36', headband: 'none', extra: 'none' },
-    jutsu: ['shadowbind', 'smokebomb', 'tagkunai', 'flashstep'], awakening: 'curse', ultimate: 'moon' },
+    jutsu: ['shadowbind', 'shurikenstorm', 'tagkunai', 'flashstep'], awakening: 'curse', ultimate: 'moon' },
   { id: 'p_tsubaki', name: 'Tsubaki Hanamura', affinity: 'fire',
     look: { skin: '#ffe0bd', hair: '#e86fb4', hairStyle: 'buns', eyes: '#3aa55d', outfit: '#b8322a', pants: '#3a3a44', cloth: '#b8322a', headband: 'forehead', extra: 'none' },
     jutsu: ['spiral', 'rotation', 'phoenix', 'flashstep'], awakening: 'gates', ultimate: 'cannon' },
   { id: 'p_haru', name: 'Haru Kazemaki', affinity: 'wind',
     look: { skin: '#ffe0bd', hair: '#ffd23f', hairStyle: 'spiky', eyes: '#2e6bd6', outfit: '#ff7a1a', pants: '#2d3550', cloth: '#2a4fd6', headband: 'forehead', extra: 'marks' },
-    jutsu: ['clones', 'spiral', 'windblade', 'gale'], awakening: 'beast', ultimate: 'thousand' },
+    jutsu: ['clones', 'spiral', 'windblade', 'windrang'], awakening: 'beast', ultimate: 'thousand' },
   { id: 'p_yuki', name: 'Yuki Shirogane', affinity: 'water',
     look: { skin: '#f3d2c1', hair: '#b0b8c8', hairStyle: 'short', eyes: '#6ec6ff', outfit: '#3a5fd6', pants: '#d8d0c0', cloth: '#d8d0c0', headband: 'arm', extra: 'none' },
     jutsu: ['waterbullets', 'tidalwave', 'vacuumshots', 'mist'], awakening: 'sage', ultimate: 'tsunami' },
@@ -6607,7 +7012,8 @@ class AIController {
     this.seen = new Set();
     this.subDecided = false;
     this.wanderPt = null;
-    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
+    this.kunaiHoldT = 0;
+    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false, kunaiHeld: false, dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
     // preferred fighting range from the loadout
     let ranged = 0;
     for (const s of f.jutsu) if (s && ['proj', 'aoe'].includes(s.def.ai.kind)) ranged++;
@@ -6657,7 +7063,7 @@ class AIController {
   input(f, dt) {
     const o = this.out, d = this.d;
     this.time += dt;
-    o.light = o.heavyPressed = o.dash = o.kunai = o.awaken = o.ult = false;
+    o.light = o.heavyPressed = o.dash = o.kunai = o.awaken = o.ult = o.jump = false;
     o.j[0] = o.j[1] = o.j[2] = o.j[3] = false;
     o.block = o.heavy = o.charge = false;
     o.mx = 0; o.my = 0;
@@ -6670,10 +7076,12 @@ class AIController {
       if (q.a === 'block') this.blockT = Math.max(this.blockT, q.hold || 0.35);
       else if (q.a === 'dash') { o.dash = true; if (q.dir) { o.mx = q.dir[0]; o.my = q.dir[1]; this.dashDir = q.dir; this.dashDirT = 0.05; } }
       else if (q.a === 'light') o.light = true;
+      else if (q.a === 'jump') o.jump = true;
     }
     if (this.blockT > 0) { this.blockT -= dt; o.block = true; }
     if (this.heavyT > 0) { this.heavyT -= dt; o.heavy = true; }
     if (this.chargeT > 0) { this.chargeT -= dt; o.charge = true; }
+    o.kunaiHeld = this.kunaiHoldT > 0; if (this.kunaiHoldT > 0) this.kunaiHoldT -= dt;
     this.fleeT = Math.max(0, this.fleeT - dt);
 
     this.retargetT -= dt;
@@ -6751,7 +7159,10 @@ class AIController {
       const sp = Math.sqrt(sp2);
       const px = -p.vy / sp, py = p.vx / sp;
       const side = (cx * px + cy * py) > 0 ? -1 : 1;
-      if (r < d.dodge && tca > d.react * 0.5) this.queue.push({ a: 'dash', at: this.time + d.react * 0.5, dir: [px * side, py * side] });
+      if (r < d.dodge && tca > d.react * 0.5) {
+        if (Math.random() < 0.4 && f.z < 1) this.schedule('jump', d.react * 0.4); // hop over it
+        else this.queue.push({ a: 'dash', at: this.time + d.react * 0.5, dir: [px * side, py * side] });
+      }
       else if (r < d.dodge + d.parry && p.reflectable) this.schedule('block', Math.max(0, tca - 0.1), 0.25);
       else if (r < d.dodge + d.parry + d.block * 0.6) this.schedule('block', d.react * 0.5, Math.max(0.3, tca + 0.1));
     }
@@ -6808,7 +7219,16 @@ class AIController {
     // juggle chase after launcher
     if (f.state === 'attack' && f.atk && f.atk.finisher && f.atkConnected && Math.random() < d.combo) o.light = true;
 
-    if (dist > 2.8 && dist < 8 && los && f.kunai > 0 && Math.random() < 0.16) { o.kunai = true; return; }
+    // dive-kick onto targets below us
+    if (f.z > 20 && dist < 3 && Math.random() < 0.35 * d.combo) { o.heavyPressed = true; return; }
+    // chase airborne targets into the air
+    if (t.z > 18 && dist < 2 && f.z < 1 && Math.random() < d.combo) { o.jump = true; return; }
+    if (dist > 2.8 && dist < 8 && los && f.kunai > 0 && Math.random() < 0.16) {
+      o.kunai = true;
+      if (f.kunai >= 2 && Math.random() < 0.35) this.kunaiHoldT = 0.4; // charged shuriken
+      return;
+    }
+    if (dist > 2 && dist < 5 && f.z < 1 && Math.random() < 0.05 * d.aggro) { o.jump = true; return; }
     if (dist > 2.5 && dist < 5.5 && this.prefRange < 2 && los && Math.random() < 0.12 * d.aggro && f.dashCD <= 0) {
       const [nx, ny] = U.norm(t.x - f.x, t.y - f.y);
       o.dash = true; this.dashDir = [nx, ny]; this.dashDirT = 0.05;
@@ -7014,15 +7434,42 @@ const FFA_COLORS = ['#4aa8ff', '#ff5a4a', '#5ad06a', '#ffc83a', '#c07aff', '#ff8
 class PlayerController {
   constructor(f) {
     this.f = f;
-    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
+    this.lmbHold = 0;
+    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false, dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
   }
-  input(f) {
+
+  validLock(f, t) {
+    return t && t.alive && Combat.enemies(f, t) && (t.st.stealth <= 0 || U.dist(f.x, f.y, t.x, t.y) < 1.4) && U.dist(f.x, f.y, t.x, t.y) < 20;
+  }
+
+  // Best lock target: favours enemies near where you're aiming, then distance.
+  pickLock(f, aimAng, exclude, dir) {
+    let best = null, bs = Infinity;
+    const cur = f.lock;
+    const curAng = cur ? Math.atan2(cur.y - f.y, cur.x - f.x) : aimAng;
+    for (const e of W.fighters) {
+      if (e === exclude || e.isClone || !this.validLock(f, e) || U.dist(f.x, f.y, e.x, e.y) > 16) continue;
+      const a = Math.atan2(e.y - f.y, e.x - f.x);
+      let score;
+      if (dir) {
+        // cycle clockwise / counter-clockwise from the current target
+        let d = U.angDiff(curAng, a) * dir;
+        if (d <= 0.01) d += TAU;
+        score = d;
+      } else score = Math.abs(U.angDiff(aimAng, a)) * 5 + U.dist(f.x, f.y, e.x, e.y) * 0.4;
+      if (score < bs) { bs = score; best = e; }
+    }
+    return best;
+  }
+
+  input(f, dt) {
     const o = this.out;
     const mv = Input.moveVector();
     const mag = Math.min(1, Math.hypot(mv.x, mv.y));
     const [wx, wy] = ISO.screenDirToWorld(mv.x, mv.y);
     o.mx = wx * mag; o.my = wy * mag;
     const pad = Input.pad;
+    let aimAng = f.facing;
     if (pad.active && (pad.rx || pad.ry) && !Input.usingMouse()) {
       const [ax, ay] = ISO.screenDirToWorld(pad.rx, pad.ry);
       o.ax = f.x + ax * 4.5; o.ay = f.y + ay * 4.5;
@@ -7042,12 +7489,34 @@ class PlayerController {
       else if (mag > 0.1) { o.ax = f.x + wx * 3; o.ay = f.y + wy * 3; }
       else { o.ax = f.x + Math.cos(f.facing) * 3; o.ay = f.y + Math.sin(f.facing) * 3; }
     }
+    if (o.ax !== null) aimAng = Math.atan2(o.ay - f.y, o.ax - f.x);
+
+    // ---- lock-on ----
+    if (f.lock && !this.validLock(f, f.lock)) f.lock = null;
+    if (Input.wasPressed('lock')) {
+      if (f.lock) { f.lock = null; SFX.play('uiBack', 0.4); }
+      else { f.lock = this.pickLock(f, aimAng); if (f.lock) SFX.play('ui', 0.6); }
+    }
+    if (f.lock && (Input.wasPressed('lockNext') || Input.wasPressed('lockPrev'))) {
+      const n = this.pickLock(f, aimAng, f.lock, Input.wasPressed('lockNext') ? 1 : -1);
+      if (n) { f.lock = n; SFX.play('ui', 0.5); }
+    }
+    if (f.lock) { o.ax = f.lock.x; o.ay = f.lock.y; }
+
+    // hold left mouse for a heavy (tap = light combo)
+    const lmb = Input.isDown('light') && !Input.usingPad();
+    const prevHold = this.lmbHold;
+    this.lmbHold = lmb ? this.lmbHold + dt : 0;
+    const holdHeavy = this.lmbHold >= 0.26;
+
     o.light = Input.wasPressed('light');
-    o.heavyPressed = Input.wasPressed('heavy');
-    o.heavy = Input.isDown('heavy');
+    o.heavyPressed = Input.wasPressed('heavy') || (holdHeavy && prevHold < 0.26);
+    o.heavy = Input.isDown('heavy') || holdHeavy;
+    o.jump = Input.wasPressed('jump');
     o.dash = Input.wasPressed('dash');
     o.block = Input.isDown('block');
     o.kunai = Input.wasPressed('kunai');
+    o.kunaiHeld = Input.isDown('kunai');
     o.charge = Input.isDown('charge');
     o.j[0] = Input.wasPressed('j1'); o.j[1] = Input.wasPressed('j2'); o.j[2] = Input.wasPressed('j3'); o.j[3] = Input.wasPressed('j4');
     o.awaken = Input.wasPressed('awaken');
@@ -7142,7 +7611,13 @@ class World {
   // ---- camera ---------------------------------------------------------------------
   camCenterFor(f) {
     let x = ISO.sx(f.x, f.y), y = ISO.sy(f.x, f.y, f.z * 0.5) - 14;
-    if (f === this.player && Input.usingMouse() && !this.over) {
+    const L = f === this.player && f.lock && f.lock.alive ? f.lock : null;
+    if (L) {
+      // frame both fighters, weighted toward the player, keeping the player on screen
+      const lx = ISO.sx(L.x, L.y), ly = ISO.sy(L.x, L.y, L.z * 0.5) - 14;
+      x += U.clamp((lx - x) * 0.4, -this.cam.w * 0.3, this.cam.w * 0.3);
+      y += U.clamp((ly - y) * 0.4, -this.cam.h * 0.28, this.cam.h * 0.28);
+    } else if (f === this.player && Input.usingMouse() && !this.over) {
       const m = Input.mouseView();
       if (m) { x += U.clamp((m.x - this.cam.w / 2) * 0.18, -50, 50); y += U.clamp((m.y - this.cam.h / 2) * 0.18, -34, 34); }
     }
@@ -7551,6 +8026,12 @@ const Icons = (() => {
     tag(x, c) { x.fillStyle = '#e8d8a0'; x.fillRect(8, 5, 8, 14); x.fillStyle = '#b8322a'; x.fillRect(10, 8, 4, 1); x.fillRect(11, 10, 2, 5); x.fillRect(10, 16, 4, 1); x.fillStyle = '#c0c4cc'; x.fillRect(11, 1, 2, 4); x.fillRect(11, 19, 2, 4); },
     smoke(x, c) { x.fillStyle = '#9898a4'; PX.circle(x, 8, 14, 5); PX.circle(x, 15, 12, 6); x.fillStyle = '#c8c8d4'; PX.circle(x, 12, 9, 4); x.fillStyle = '#e8e8f0'; PX.circle(x, 11, 8, 2); },
     orb(x, c) { x.fillStyle = c.dark; PX.circle(x, 12, 12, 8); x.fillStyle = c.main; PX.circle(x, 12, 12, 6); x.fillStyle = '#fff'; for (let a = 0; a < 6; a += 0.3) x.fillRect(Math.round(12 + Math.cos(a) * a), Math.round(12 + Math.sin(a) * a), 1, 1); },
+    bomb(x, c) { x.fillStyle = c.dark; PX.circle(x, 11, 14, 6); x.fillStyle = c.main; PX.circle(x, 10, 13, 4); x.fillStyle = '#fff'; x.fillRect(8, 11, 2, 2); x.fillStyle = c.light; PX.line(x, 14, 9, 18, 4); x.fillStyle = '#ffe14a'; x.fillRect(18, 3, 2, 2); x.fillRect(20, 5, 1, 1); },
+    boomerang(x, c) { x.fillStyle = c.main; for (let a = 0.3; a < 2.9; a += 0.08) x.fillRect(Math.round(12 + Math.cos(a) * 8), Math.round(15 - Math.sin(a) * 9), 3, 3); x.fillStyle = c.light; PX.line(x, 4, 12, 3, 16); PX.line(x, 20, 12, 21, 16); x.fillStyle = '#fff'; x.fillRect(11, 6, 2, 2); },
+    rail(x, c) { x.fillStyle = c.dark; PX.line(x, 2, 20, 22, 4, 3); x.fillStyle = c.light; PX.line(x, 2, 20, 22, 4, 1); x.fillStyle = '#fff'; PX.circle(x, 4, 18, 2); x.fillRect(18, 5, 3, 3); },
+    shuriken(x, c) { for (const [ox, oy] of [[7, 8], [16, 14]]) { x.fillStyle = c.light; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; PX.line(x, ox, oy, ox + Math.cos(a) * 5, oy + Math.sin(a) * 5, 2); } x.fillStyle = c.dark; x.fillRect(ox - 1, oy - 1, 2, 2); } },
+    shotgun(x, c) { x.fillStyle = c.dark; x.fillRect(2, 11, 6, 3); for (let k = 0; k < 6; k++) { const a = -0.5 + k * 0.2; x.fillStyle = k % 2 ? c.main : c.light; x.fillRect(Math.round(10 + Math.cos(a) * (6 + k % 3 * 3)), Math.round(12 + Math.sin(a) * (6 + k % 3 * 3)), 3, 2); } },
+    shark(x, c) { x.fillStyle = c.main; PX.ellipse(x, 11, 13, 8, 4); x.fillRect(9, 5, 3, 5); x.fillRect(2, 10, 3, 6); x.fillStyle = c.light; PX.ellipse(x, 12, 15, 6, 2); x.fillStyle = '#fff'; for (let k = 0; k < 3; k++) x.fillRect(15 + k * 2, 14, 1, 2); x.fillStyle = '#120a18'; x.fillRect(16, 11, 1, 1); },
     star(x, c) { x.fillStyle = c.light; for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; PX.line(x, 12, 12, 12 + Math.cos(a) * (k % 2 ? 5 : 10), 12 + Math.sin(a) * (k % 2 ? 5 : 10), 2); } x.fillStyle = '#fff'; PX.circle(x, 12, 12, 2); },
     eye(x, c) { x.fillStyle = '#fff'; PX.ellipse(x, 12, 12, 9, 5); x.fillStyle = c.main; PX.circle(x, 12, 12, 4); x.fillStyle = c.dark; PX.circle(x, 12, 12, 2); x.fillStyle = c.light; x.fillRect(10, 10, 1, 1); },
   };
@@ -7644,11 +8125,16 @@ const Render = (() => {
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     const zoom = (Settings.data && Settings.data.zoom) || 'normal';
-    const target = zoom === 'near' ? 250 : zoom === 'far' ? 400 : 310;
-    scale = Math.max(1, Math.round(h / target));
+    const target = zoom === 'near' ? 200 : zoom === 'far' ? 330 : 250;
+    // Prefer an even scale so the 2x hi-res canvas maps to whole screen pixels.
+    const s = h / target;
+    const even = Math.max(2, 2 * Math.round(s / 2)), any = Math.max(1, Math.round(s));
+    scale = Math.abs(h / even - target) <= target * 0.22 ? even : any;
     VW = Math.ceil(w / scale); VH = Math.ceil(h / scale);
-    canvas.width = VW; canvas.height = VH;
+    canvas.width = VW * HIRES; canvas.height = VH * HIRES;
+    canvas.logicalW = VW; canvas.logicalH = VH;
     canvas.style.width = VW * scale + 'px'; canvas.style.height = VH * scale + 'px';
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
     ctx.imageSmoothingEnabled = false;
     vignette = U.makeCanvas(VW, VH);
     const v = vignette.getContext('2d');
@@ -7701,7 +8187,7 @@ const Render = (() => {
     if (!lying && aw === 'spirit') {
       const big = Sprites.getTinted(look, pose, frame, view, '#9a60ff');
       ctx.globalAlpha = alpha * (0.3 + Math.sin(f.time * 6) * 0.05);
-      ctx.save(); ctx.translate(sx, sy + 2); ctx.scale(flip ? -2 : 2, 2); ctx.drawImage(big, -SPR_OX, -SPR_OY); ctx.restore();
+      ctx.save(); ctx.translate(sx, sy + 2); ctx.scale(flip ? -2 : 2, 2); ctx.drawImage(big, -SPR_OX, -SPR_OY, SPR_W, SPR_H); ctx.restore();
       ctx.globalAlpha = alpha * 0.5;
       ctx.fillStyle = '#c8a0ff';
       for (let k = 0; k < 4; k++) ctx.fillRect(sx - 9, sy - 46 + k * 5, 18, 1);
@@ -7733,7 +8219,7 @@ const Render = (() => {
       ctx.translate(sx + (flip ? 13 : -13), sy - 3);
       ctx.rotate(flip ? -Math.PI / 2 : Math.PI / 2);
       if (flip) ctx.scale(1, 1);
-      ctx.drawImage(cv, -SPR_OX, -SPR_OY + 6);
+      ctx.drawImage(cv, -SPR_OX, -SPR_OY + 6, SPR_W, SPR_H);
       ctx.restore();
     } else {
       blitSprite(ctx, cv, sx, sy, flip);
@@ -7799,13 +8285,13 @@ const Render = (() => {
     ctx.globalAlpha = alpha;
     if (rise) {
       ctx.save(); ctx.beginPath(); ctx.rect(dx, dy - rise - 60, spr.c.width, spr.c.height - TILE_H + 60 + 8); ctx.clip();
-      ctx.drawImage(spr.c, dx, dy);
+      drawHi(ctx, spr.c, dx, dy);
       ctx.restore();
-    } else ctx.drawImage(spr.c, dx, dy);
+    } else drawHi(ctx, spr.c, dx, dy);
     if (b.flash > 0) {
       b.flash -= dt;
       ctx.globalAlpha = alpha * 0.7;
-      ctx.drawImage(Sprites_tint(spr.c, '#ffffff'), dx, dy);
+      drawHi(ctx, Sprites_tint(spr.c, '#ffffff'), dx, dy);
     }
     if (b.hp < b.maxHp * 0.6 && b.maxHp !== Infinity) {
       ctx.globalAlpha = alpha;
@@ -7813,7 +8299,7 @@ const Render = (() => {
     }
     if (b.burning > 0) {
       ctx.globalAlpha = 0.25 + Math.random() * 0.15;
-      ctx.drawImage(Sprites_tint(spr.c, '#ff6a1a'), dx, dy);
+      drawHi(ctx, Sprites_tint(spr.c, '#ff6a1a'), dx, dy);
     }
     ctx.globalAlpha = 1;
   }
@@ -7828,12 +8314,15 @@ const Render = (() => {
     x.drawImage(c, 0, 0);
     x.globalCompositeOperation = 'source-atop';
     x.fillStyle = col; x.fillRect(0, 0, t.width, t.height);
+    t.lw = c.lw; t.lh = c.lh;
     m[col] = t;
     return t;
   }
 
   // ---- world ---------------------------------------------------------------------------
   function world(w) {
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     const now = performance.now();
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
@@ -7846,8 +8335,9 @@ const Render = (() => {
     // ground
     const gx = cam.x + A.originX, gy = cam.y;
     const sx0 = Math.max(0, gx), sy0 = Math.max(0, gy);
-    const sw = Math.min(A.ground.width - sx0, VW - (sx0 - gx)), sh = Math.min(A.ground.height - sy0, VH - (sy0 - gy));
-    if (sw > 0 && sh > 0) ctx.drawImage(A.ground, sx0, sy0, sw, sh, sx0 - gx, sy0 - gy, sw, sh);
+    const sw = Math.min(A.ground.width / A.groundRes - sx0, VW - (sx0 - gx)), sh = Math.min(A.ground.height / A.groundRes - sy0, VH - (sy0 - gy));
+    const GR = A.groundRes;
+    if (sw > 0 && sh > 0) ctx.drawImage(A.ground, sx0 * GR, sy0 * GR, sw * GR, sh * GR, sx0 - gx, sy0 - gy, sw, sh);
 
     // visible tile range
     const c1 = w.screenToWorld(-40, -120), c2 = w.screenToWorld(VW + 40, -120), c3 = w.screenToWorld(-40, VH + 110), c4 = w.screenToWorld(VW + 40, VH + 110);
@@ -7929,11 +8419,12 @@ const Render = (() => {
     FX.draw(ctx, cam, 1);
     drawReticle(w, cam);
     for (const f of w.fighters) drawOverhead(ctx, f, cam, viewer);
+    drawLockMarker(w, cam);
     FX.drawTexts(ctx, cam);
 
     // atmosphere
     if (A.T.tint) { ctx.fillStyle = A.T.tint; ctx.fillRect(0, 0, VW, VH); }
-    ctx.drawImage(vignette, 0, 0);
+    ctx.drawImage(vignette, 0, 0, VW, VH);
     drawOffscreenArrows(w, cam, viewer);
     drawMoon(w);
     if (w.flashT > 0) {
@@ -7944,13 +8435,40 @@ const Render = (() => {
     if (w.cutin) drawCutin(w.cutin);
   }
 
+  // Rotating brackets around the locked-on enemy.
+  function drawLockMarker(w, cam) {
+    const p = w.player, t = p && p.lock;
+    if (!t || !t.alive || !p.alive) return;
+    const [sx, sy] = DF.sp(t.x, t.y, t.z, cam);
+    const cy = sy - 15, r = 13 + Math.sin(w.realTime * 6) * 1.5;
+    const a0 = w.realTime * 2;
+    ctx.fillStyle = '#120a18';
+    for (let k = 0; k < 4; k++) {
+      const a = a0 + k * Math.PI / 2;
+      const bx = sx + Math.cos(a) * r, by = cy + Math.sin(a) * r * 0.9;
+      PX.line(ctx, bx, by, bx - Math.cos(a + 0.6) * 5, by - Math.sin(a + 0.6) * 5, 3);
+      PX.line(ctx, bx, by, bx - Math.cos(a - 0.6) * 5, by - Math.sin(a - 0.6) * 5, 3);
+    }
+    ctx.fillStyle = '#ff4a5a';
+    for (let k = 0; k < 4; k++) {
+      const a = a0 + k * Math.PI / 2;
+      const bx = sx + Math.cos(a) * r, by = cy + Math.sin(a) * r * 0.9;
+      PX.line(ctx, bx, by, bx - Math.cos(a + 0.6) * 5, by - Math.sin(a + 0.6) * 5, 1);
+      PX.line(ctx, bx, by, bx - Math.cos(a - 0.6) * 5, by - Math.sin(a - 0.6) * 5, 1);
+    }
+    // ground ring so you can read their position while they're airborne
+    ctx.fillStyle = 'rgba(255,74,90,0.7)';
+    const [gx, gy] = DF.sp(t.x, t.y, 0, cam);
+    PX.ellipseRing(ctx, gx, gy, 10, 5, 1);
+  }
+
   // Ground reticle at the player's aim point (easier to read than the OS cursor).
   let cursorHidden = false;
   function drawReticle(w, cam) {
     const p = w.player;
-    const show = !!(p && p.alive && !w.demo && !w.over && Input.usingMouse());
+    const show = !!(p && p.alive && !w.demo && !w.over && Input.usingMouse() && !p.lock);
     if (show !== cursorHidden) { cursorHidden = show; canvas.style.cursor = show ? 'none' : 'crosshair'; }
-    if (!p || !p.alive || w.demo || w.over) return;
+    if (!p || !p.alive || w.demo || w.over || p.lock) return;
     const [sx, sy] = DF.sp(p.aimX, p.aimY, 0, cam);
     const r = 5 + (Math.floor(w.realTime * 3) % 2);
     ctx.globalAlpha = 0.8;
@@ -8014,9 +8532,9 @@ const Render = (() => {
     ctx.fillStyle = U.rgba(el.light, 0.35);
     for (let n = 0; n < 12; n++) { const ly = y - h / 2 + 4 + ((n * 37 + Math.floor(c.t * 60) * 13) % (h - 8)); ctx.fillRect((n * 97 + c.t * 900) % VW, ly, 30 + (n % 3) * 20, 1); }
     const por = Sprites.portrait(lookFor(f), 3);
-    const px = Math.round(U.lerp(-por.width, VW * 0.18, U.easeOutCubic(Math.min(1, c.t / 0.25))) + c.t * 12);
+    const px = Math.round(U.lerp(-por.lw, VW * 0.18, U.easeOutCubic(Math.min(1, c.t / 0.25))) + c.t * 12);
     ctx.save(); ctx.beginPath(); ctx.rect(0, y - h / 2 + 2, VW, h - 4); ctx.clip();
-    ctx.drawImage(por, px, y - por.height / 2 + 6);
+    drawHi(ctx, por, px, y - por.lh / 2 + 6);
     ctx.restore();
     const tx = Math.round(U.lerp(VW + 50, VW * 0.42, U.easeOutCubic(Math.min(1, c.t / 0.3))));
     Font.draw(ctx, 'ULTIMATE', tx, y - 18, el.light, { outline: '#120a18' });
@@ -8074,6 +8592,7 @@ const HUD = (() => {
       drawSlots(ctx, f, VW, VH, w);
     }
     drawMatchInfo(ctx, w, VW);
+    drawTargetFrame(ctx, w, VW);
     drawMinimap(ctx, w, VW);
     drawKillfeed(ctx, w, VW);
     drawCombo(ctx, f, VH);
@@ -8089,40 +8608,36 @@ const HUD = (() => {
   }
 
   function drawStatus(ctx, f, w) {
-    const x = 5, y = 5;
-    panel(ctx, x, y, 176, 52);
-    const por = Sprites.portrait(Render.lookFor(f), 2);
-    ctx.fillStyle = '#1a1226'; ctx.fillRect(x + 3, y + 3, 46, 46);
-    ctx.save(); ctx.beginPath(); ctx.rect(x + 3, y + 3, 46, 46); ctx.clip();
-    ctx.drawImage(por, x + 1, y + 5);
+    const x = 4, y = 4, pw = 152;
+    panel(ctx, x, y, pw, 40);
+    const por = Sprites.portrait(Render.lookFor(f), 1);
+    ctx.fillStyle = '#1a1226'; ctx.fillRect(x + 3, y + 3, 30, 34);
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 3, y + 3, 30, 34); ctx.clip();
+    drawHi(ctx, por, x + 6, y + 9);
     ctx.restore();
-    ctx.fillStyle = f.teamColor; ctx.fillRect(x + 3, y + 48, 46, 1);
-    const tx = x + 54;
-    Font.draw(ctx, f.name.toUpperCase(), tx, y + 4, '#ffffff', { outline: OUT });
-    Font.draw(ctx, 'LV' + f.level, x + 172, y + 4, '#ffe14a', { align: 'right', outline: OUT });
-    bar(ctx, tx, y + 14, 118, 7, f.hp / f.maxHp, f.hp < f.maxHp * 0.3 ? '#ff4a4a' : '#5ad06a');
-    Font.draw(ctx, Math.ceil(f.hp) + '/' + Math.round(f.maxHp), tx + 116, y + 14, '#ffffff', { align: 'right', outline: OUT });
-    bar(ctx, tx, y + 24, 118, 4, f.chakra / f.maxChakra, f.state === 'charge' && Math.floor(f.time * 10) % 2 ? '#bfe0ff' : '#4a8cff');
-    bar(ctx, tx, y + 31, 118, 2, f.level >= MAX_LEVEL ? 1 : f.xp / f.xpNext(), '#ffe14a');
-    // guard
-    if (f.guard < 100) bar(ctx, tx, y + 36, 58, 2, f.guard / 100, f.guard < 30 ? '#ff8a4a' : '#e8e8f0');
-    // substitution logs
+    ctx.fillStyle = f.teamColor; ctx.fillRect(x + 3, y + 36, 30, 1);
+    const tx = x + 37, bw = pw - 41;
+    Font.draw(ctx, f.name.split(' ')[0].toUpperCase(), tx, y + 3, '#ffffff', { outline: OUT });
+    Font.draw(ctx, 'LV' + f.level, x + pw - 4, y + 3, '#ffe14a', { align: 'right', outline: OUT });
+    bar(ctx, tx, y + 13, bw, 6, f.hp / f.maxHp, f.hp < f.maxHp * 0.3 ? '#ff4a4a' : '#5ad06a');
+    bar(ctx, tx, y + 21, bw, 3, f.chakra / f.maxChakra, f.state === 'charge' && Math.floor(f.time * 10) % 2 ? '#bfe0ff' : '#4a8cff');
+    bar(ctx, tx, y + 26, bw, 1, f.level >= MAX_LEVEL ? 1 : f.xp / f.xpNext(), '#ffe14a');
+    // bottom row: taijutsu level, kunai ammo, substitution logs
+    Font.draw(ctx, 'T' + f.taiLvl(), tx, y + 30, '#ffb070', { outline: OUT });
+    for (let k = 0; k < 4; k++) {
+      ctx.fillStyle = k < f.kunai ? '#d8dce6' : '#3a3a44';
+      ctx.fillRect(tx + 16 + k * 5, y + 30, 1, 6); ctx.fillRect(tx + 15 + k * 5, y + 34, 3, 1);
+    }
     for (let k = 0; k < 2; k++) {
       const full = f.sub >= (k + 1) * 50;
-      const lx = tx + 64 + k * 12, ly = y + 36;
+      const lx = tx + 40 + k * 12, ly = y + 32;
       ctx.fillStyle = full ? '#a8763e' : '#3a2a20'; ctx.fillRect(lx, ly, 10, 4);
       ctx.fillStyle = full ? '#e8c890' : '#4a3a2a'; ctx.fillRect(lx + 8, ly, 2, 4);
       if (!full && f.sub > k * 50) { ctx.fillStyle = '#6a4a2a'; ctx.fillRect(lx, ly + 3, Math.round(10 * ((f.sub - k * 50) / 50)), 1); }
     }
-    Font.draw(ctx, 'SUB', tx + 90, y + 35, '#b8a888', { outline: OUT });
-    Font.draw(ctx, 'TAI ' + f.taiLvl(), tx, y + 41, '#ffb070', { outline: OUT });
-    // kunai
-    for (let k = 0; k < 3; k++) {
-      ctx.fillStyle = k < f.kunai ? '#d8dce6' : '#3a3a44';
-      ctx.fillRect(tx + 40 + k * 6, y + 42, 1, 6); ctx.fillRect(tx + 39 + k * 6, y + 46, 3, 1);
-    }
-    // status icons
-    let sx = tx + 64;
+    if (f.guard < 100) bar(ctx, tx + 66, y + 33, bw - 66, 2, f.guard / 100, f.guard < 30 ? '#ff8a4a' : '#e8e8f0');
+    // statuses under the panel
+    let sx = x + 2;
     const st = [];
     if (f.st.burn > 0) st.push(['BURN', '#ff8a1f']);
     if (f.st.wet > 0) st.push(['WET', '#6ec6ff']);
@@ -8130,7 +8645,21 @@ const HUD = (() => {
     if (f.st.slow > 0) st.push(['SLOW', '#c08a4a']);
     if (f.st.stealth > 0) st.push(['HIDDEN', '#c9b6ff']);
     for (const b of f.buffs) st.push([b.id === 'stoneskin' ? 'STONE' : b.id === 'larmor' ? 'VOLT' : 'BUFF', '#ffe14a']);
-    for (const [t, c] of st.slice(0, 3)) { sx += Font.draw(ctx, t, sx, y + 42, c, { outline: OUT }) + 4; }
+    for (const [t, c] of st.slice(0, 4)) { sx += Font.draw(ctx, t, sx, y + 44, c, { outline: OUT }) + 5; }
+  }
+
+  // Health bar of the locked-on enemy, top centre.
+  function drawTargetFrame(ctx, w, VW) {
+    const p = w.player, t = p && p.lock;
+    if (!t || !t.alive) return;
+    const E = ELEMENTS[t.affinity] || ELEMENTS.shinobi;
+    const bw = 120, x = Math.round(VW / 2 - bw / 2), y = Render.VH - 70;
+    panel(ctx, x - 4, y - 3, bw + 8, 21);
+    Font.draw(ctx, t.name.toUpperCase(), x, y, t.teamColor, { outline: OUT });
+    Font.draw(ctx, 'LV' + t.level, x + bw, y, '#ffe14a', { align: 'right', outline: OUT });
+    bar(ctx, x, y + 10, bw, 4, t.hp / t.maxHp, t.hp < t.maxHp * 0.3 ? '#ff4a4a' : '#ff8a5a');
+    ctx.fillStyle = E.color; ctx.fillRect(x, y + 15, 12, 1);
+    if (t.awakened) { ctx.fillStyle = t.awakened.def.colors[1]; ctx.fillRect(x + 14, y + 15, Math.round((bw - 14) * t.awakened.t / t.awakened.def.dur), 1); }
   }
 
   function orb(ctx, cx, cy, r, k, col, label, ready, time, active) {
@@ -8185,7 +8714,7 @@ const HUD = (() => {
     const pad = Input.usingPad(), sony = Input.pad.sony;
     if (aw) {
       const k = f.awakened ? f.awakened.t / aw.dur : f.awak / 100;
-      orb(ctx, x0 - 20, y0 + 11, 11, k, aw.colors[1], pad ? (sony ? 'L3' : 'LS') : 'T', !f.awakened && f.awak >= 100, f.time, !!f.awakened);
+      orb(ctx, x0 - 20, y0 + 11, 11, k, aw.colors[1], pad ? (sony ? 'R1' : 'RB') : 'T', !f.awakened && f.awak >= 100, f.time, !!f.awakened);
     }
     if (ul) {
       const el = ELEMENTS[ul.element] || ELEMENTS.shinobi;
@@ -8209,7 +8738,7 @@ const HUD = (() => {
     }
     if (c.training) {
       Font.draw(ctx, 'TRAINING DOJO', cx, y, '#ffd35c', { align: 'center', scale: 2, outline: OUT });
-      Font.draw(ctx, 'PARTNERS REVIVE - METERS CHARGE FAST - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align: 'center', outline: OUT });
+      Font.draw(ctx, 'PARTNERS REVIVE - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align: 'center', outline: OUT });
       return;
     }
     const goal = c.winType === 'kills' ? 'FIRST TO ' + c.killLimit + ' KO' : c.stock + ' LIVES - LAST ONE STANDING';
@@ -8342,25 +8871,28 @@ const HUD = (() => {
   function drawControlsHint(ctx, VW, VH, t) {
     const sony = Input.pad.sony;
     const lines = Input.usingPad() ? (sony ? [
-      'L-STICK MOVE   R-STICK AIM   CROSS ATTACK   SQUARE HEAVY',
-      'CIRCLE DASH / SUBSTITUTE   R1 BLOCK (TAP = PARRY)',
-      'HOLD L2 + CROSS/CIRCLE/SQUARE/TRIANGLE = JUTSU',
-      'TRIANGLE KUNAI  L1 CHARGE  L3 AWAKEN  R2 ULTIMATE',
+      'L-STICK MOVE  CROSS JUMP  SQUARE ATTACK',
+      'TRIANGLE HEAVY  CIRCLE DASH  R1 BLOCK',
+      'R3 LOCK-ON  R2 KUNAI (HOLD)  L1 CHAKRA',
+      'HOLD L2 + FACE BUTTON = JUTSU',
+      'L2+R2 ULTIMATE  L2+R1 AWAKEN',
     ] : [
-      'L-STICK MOVE   R-STICK AIM   A ATTACK   X HEAVY',
-      'B DASH / SUBSTITUTE   RB BLOCK (TAP = PARRY)',
-      'HOLD LT + A / B / X / Y = JUTSU',
-      'Y KUNAI   LB CHARGE   LS AWAKEN   RT ULTIMATE',
+      'L-STICK MOVE  A JUMP  X ATTACK',
+      'Y HEAVY  B DASH  RB BLOCK',
+      'RS LOCK-ON  RT KUNAI (HOLD)  LB CHAKRA',
+      'HOLD LT + FACE BUTTON = JUTSU',
+      'LT+RT ULTIMATE  LT+RB AWAKEN',
     ]) : [
-      'WASD MOVE   MOUSE AIM   LMB ATTACK   RMB HEAVY (HOLD)',
-      'SPACE DASH / SUBSTITUTE   SHIFT BLOCK (TAP = PARRY)',
-      'Q E R F JUTSU   X KUNAI   C CHARGE CHAKRA',
-      'T AWAKEN   G ULTIMATE   TAB SCORES   ESC PAUSE',
+      'WASD MOVE  MOUSE AIM  SPACE JUMP',
+      'LMB ATTACK (HOLD = HEAVY)  RMB BLOCK',
+      'SHIFT DASH / SUBSTITUTE  Z LOCK-ON',
+      'Q E R F JUTSU  X KUNAI  C CHAKRA',
+      'T AWAKEN  G ULTIMATE  ESC PAUSE',
     ];
     ctx.globalAlpha = t > 11 ? (14 - t) / 3 : 1;
     const wdt = Math.max(...lines.map((l) => Font.measure(l))) + 12;
-    panel(ctx, 5, 62, wdt, 50);
-    lines.forEach((l, i) => Font.draw(ctx, l, 10, 67 + i * 11, '#e8dcc0'));
+    panel(ctx, 4, 58, wdt, lines.length * 10 + 6);
+    lines.forEach((l, i) => Font.draw(ctx, l, 9, 62 + i * 10, '#e8dcc0'));
     ctx.globalAlpha = 1;
     void VW; void VH;
   }
@@ -8688,7 +9220,7 @@ const UI = (() => {
     if (!existing || existing.id.startsWith('p_')) { ch.id = Roster.newId(); if (existing) ch.name = existing.name + ' II'; }
     let tab = 'look', selSlot = 0, filter = 'all';
     let view = 'F', flip = false, poseIdx = 0, facingIdx = 0;
-    const POSE_CYCLE = [['idle', 2], ['run', 4], ['jab', 1], ['cross', 1], ['kick', 1], ['uppercut', 1], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
+    const POSE_CYCLE = [['idle', 2], ['run', 8], ['jump', 1], ['airkick', 1], ['lunge', 1], ['spin', 2], ['jab', 1], ['cross', 1], ['kick', 1], ['uppercut', 1], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
 
     const prev = U.makeCanvas(SPR_W * 5, SPR_H * 5);
     prev.className = 'px';
@@ -8712,7 +9244,7 @@ const UI = (() => {
     function anim() {
       const t = (performance.now() - t0) / 1000;
       const [pose, n] = POSE_CYCLE[poseIdx % POSE_CYCLE.length];
-      const frame = Math.floor(t * (pose === 'run' ? 8 : 3)) % n;
+      const frame = Math.floor(t * (pose === 'run' ? 12 : 3)) % n;
       pctx.clearRect(0, 0, prev.width, prev.height);
       const spr = Sprites.get(ch.look, pose, frame, view);
       pctx.save();
@@ -8891,20 +9423,23 @@ const UI = (() => {
       h('div', { class: 'topbar' }, btn('Back', () => back(), 'small back'), h('h2', { text: 'HOW TO PLAY' })),
       h('div', { class: 'wrap panel howto' },
         h('section', null, h('h3', { text: 'CONTROLS' }), h('div', { class: 'keys' },
-          k('WASD', 'Move (arrow keys work too)'), k('MOUSE', 'Aim - jutsu fly toward the cursor'), k('LMB / J', 'Light attack - tap for a combo'),
-          k('RMB / K', 'Heavy attack - hold to charge, breaks guards'), k('SPACE', 'Dash (invulnerable start) / Substitution when hit'),
-          k('SHIFT / L', 'Block - tap right before a hit to PARRY'), k('Q E R F', 'Your four jutsu (or 1-4)'), k('X / MMB', 'Throw kunai (3 ammo)'),
+          k('WASD', 'Move (arrow keys work too)'), k('MOUSE', 'Aim - jutsu fly toward the cursor'), k('SPACE', 'Jump (press again in the air to double jump)'),
+          k('LMB / J', 'Attack - tap for combos, hold for a heavy'), k('K', 'Heavy attack (hold to charge)'), k('RMB / L', 'Block - tap right before a hit to PARRY'),
+          k('SHIFT', 'Dash (invulnerable start) / Substitution when hit'), k('Z / MMB', 'Lock on to an enemy (wheel switches target)'),
+          k('Q E R F', 'Your four jutsu (or 1-4)'), k('X', 'Throw kunai - hold for a piercing shuriken'),
           k('C', 'Hold to charge chakra'), k('T', 'Awaken (meter full)'), k('G / V', 'Ultimate (meter full)'), k('TAB', 'Scoreboard'), k('ESC', 'Pause'), k('M', 'Mute'))),
         h('section', null, h('h3', { text: 'CONTROLLER (PS5 / XBOX)' }),
           h('p', { text: 'Plug in or pair the controller, then press any button - browsers only reveal a controller after a button press. Chrome and Edge work best.' }),
           h('div', { class: 'keys' },
-            k('L STICK', 'Move'), k('R STICK', 'Aim (release to auto-aim the nearest enemy)'), k('CROSS / A', 'Light attack'), k('SQUARE / X', 'Heavy attack (hold)'),
-            k('CIRCLE / B', 'Dash / Substitution'), k('TRIANGLE / Y', 'Kunai'), k('R1 / RB', 'Block (tap = parry)'), k('L1 / LB', 'Charge chakra (hold)'),
-            k('HOLD L2 / LT', '+ Cross, Circle, Square, Triangle = jutsu 1-4'), k('L3 / D-UP', 'Awaken'), k('R2 / RT', 'Ultimate'), k('OPTIONS', 'Pause'), k('TOUCHPAD', 'Scoreboard')),
+            k('L STICK', 'Move'), k('R STICK', 'Aim (release to auto-aim the nearest enemy)'), k('CROSS / A', 'Jump (twice for double jump)'), k('SQUARE / X', 'Attack'),
+            k('TRIANGLE / Y', 'Heavy attack (hold)'), k('CIRCLE / B', 'Dash / Substitution'), k('R1 / RB', 'Block (tap = parry)'), k('L1 / LB', 'Charge chakra (hold)'),
+            k('R2 / RT', 'Kunai (hold for shuriken)'), k('R3 / RS', 'Lock on (d-pad left/right switches target)'),
+            k('HOLD L2 / LT', '+ Cross, Circle, Square, Triangle = jutsu 1-4'), k('L2 + R1', 'Awaken (or d-pad up)'), k('L2 + R2', 'Ultimate (or d-pad down)'), k('OPTIONS', 'Pause'), k('TOUCHPAD', 'Scoreboard')),
           h('p', { class: 'note', text: 'In menus: D-pad or left stick to move, Cross / A to select, Circle / B to go back, L1/R1 to switch tabs.' })),
         h('section', null, h('h3', { text: 'COMBAT BASICS' }),
-          h('p', { text: 'Mash light attack for a 4-hit string ending in a launcher. Launched enemies can be juggled with more hits or jutsu. Slam enemies into walls, trees and houses for bonus damage - big hits smash straight through.' }),
-          h('p', { text: 'Heavy attacks are slow but crush blocks. A fully charged heavy breaks any guard.' }),
+          h('p', { text: 'Attacks change with the direction you hold. Standing still: a 4-hit string ending in a launcher. Moving toward your target: a lunging punch. Moving away: a retreating spin kick. Every string flows into the others.' }),
+          h('p', { text: 'Heavies are signature moves: neutral = rising launcher, toward = rocket punch through everyone in the way, away = cyclone kick all around you. In the air, heavy is a dive kick that shock-waves on landing.' }),
+          h('p', { text: 'Jump (and double jump) to dodge low jutsu and hop over rocks and crates. Attack in the air for a 3-hit air string; jump right after a hit connects to chase into the air. The lower an enemy\'s health, the farther your hits send them.' }),
           h('p', { text: 'Dash through attacks: dodging a hit during the first moments of a dash is a PERFECT DODGE - you gain chakra and your next hit deals +30%.' })),
         h('section', null, h('h3', { text: 'DEFENCE' }),
           h('p', { text: 'Blocking stops melee and most of a jutsu, but drains your guard. Tapping block just before a hit PARRIES: melee attackers are stunned and projectiles are reflected back. Mashing block disables the parry window.' }),

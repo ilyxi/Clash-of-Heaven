@@ -23,12 +23,7 @@ const Sprites = (() => {
       { armL: A_DOWN, armR: A_DOWN, legL: L_STAND, legR: R_STAND },
       { by: 1, armL: { e: [0, 3], h: [-1, 5] }, armR: { e: [0, 3], h: [1, 5] }, legL: L_STAND, legR: R_STAND },
     ],
-    run: [
-      { lean: 2, armL: { e: [-3, 1], h: [-6, 2] }, armR: { e: [-4, 1], h: [-8, 2], back: true }, legL: { k: [2, 3], f: [4, 6] }, legR: { k: [-2, 2], f: [-4, 4] } },
-      { lean: 2, by: -1, armL: { e: [-3, 1], h: [-6, 1] }, armR: { e: [-4, 1], h: [-8, 1], back: true }, legL: { k: [1, 3], f: [1, 6] }, legR: { k: [0, 2], f: [-2, 3] } },
-      { lean: 2, armL: { e: [-3, 1], h: [-6, 2] }, armR: { e: [-4, 1], h: [-8, 2], back: true }, legL: { k: [-2, 2], f: [-4, 4] }, legR: { k: [2, 3], f: [4, 6] } },
-      { lean: 2, by: -1, armL: { e: [-3, 1], h: [-6, 1] }, armR: { e: [-4, 1], h: [-8, 1], back: true }, legL: { k: [0, 2], f: [-2, 3] }, legR: { k: [1, 3], f: [1, 6] } },
-    ],
+    run: makeRunCycle(8),
     jab: [{ lean: 1, armR: { e: [3, 1], h: [7, 1] }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [3, 6] } }],
     cross: [{ lean: 2, armL: { e: [4, 1], h: [9, 0], front: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [1, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } }],
     kick: [{ lean: -1, armL: { e: [-2, 0], h: [-4, -2] }, armR: { e: [2, 1], h: [4, 3] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, -1], f: [9, -1] } }],
@@ -56,7 +51,44 @@ const Sprites = (() => {
     raise: [{ armL: { e: [-1, -3], h: [1, -7] }, armR: { e: [1, -3], h: [-1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
     slam: [{ by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true }, armR: { e: [2, 3], h: [5, 6] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } }],
     victory: [{ armL: A_DOWN, armR: { e: [1, -3], h: [1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
+    // airborne
+    jump: [{ lean: 1, armL: { e: [-2, -2], h: [-3, -5] }, armR: { e: [2, -2], h: [3, -5] }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } }],
+    fall: [{ armL: { e: [-3, 0], h: [-5, -1] }, armR: { e: [3, 0], h: [5, -1] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 2], f: [2, 5] } }],
+    airpunch: [{ lean: 2, armR: { e: [4, 0], h: [8, 0] }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [2, 1], f: [1, 3] } }],
+    airkick: [{ lean: -1, armL: { e: [-2, -1], h: [-4, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [4, 1], f: [9, 2] } }],
+    dive: [{ lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [6, 7] } }],
+    // signatures
+    lunge: [{ by: 2, lean: 4, armR: { e: [5, 0], h: [10, 0] }, armL: { e: [-2, 1], h: [-5, 1], back: true }, legL: { k: [-3, 2], f: [-6, 5] }, legR: { k: [4, 2], f: [6, 6] } }],
+    spin: [
+      { lean: -1, armL: { e: [-3, 0], h: [-7, 0] }, armR: { e: [3, 0], h: [7, 0] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, 0], f: [8, 1] } },
+      { lean: 1, armL: { e: [-3, 0], h: [-7, -1] }, armR: { e: [3, 0], h: [7, -1] }, legL: { k: [-4, 0], f: [-8, 1] }, legR: { k: [0, 3], f: [1, 6] } },
+    ],
+    backkick: [{ lean: 2, armL: { e: [2, 1], h: [4, 3], front: true }, armR: { e: [2, 0], h: [5, -1] }, legL: { k: [-4, 0], f: [-9, -1] }, legR: { k: [0, 3], f: [1, 6] } }],
   };
+
+  // Parametric sprint: legs swing through contact / passing / push-off /
+  // recovery with knee lift, arms pump opposite the legs, body bobs twice per cycle.
+  function makeRunCycle(n) {
+    const frames = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * TAU;
+      const leg = (ph) => {
+        const fx = Math.cos(ph) * 4.5;
+        const lift = Math.max(0, -Math.sin(ph)) * 3.2;           // foot off the ground on the back-swing
+        const fy = Math.round(6 - lift);
+        const kx = Math.round(fx * 0.45 + 1 + (lift > 1 ? 1.5 : 0));
+        const ky = Math.round(3 - lift * 0.6);
+        return { k: [kx, ky], f: [Math.round(fx), fy] };
+      };
+      const arm = (ph, far) => {
+        const s = -Math.cos(ph);                                 // opposite to the same-side leg
+        return { e: [Math.round(s * 1.5), 2], h: [Math.round(s * 3), Math.round(4 - Math.abs(s) * 1.5)], back: far && s < 0 };
+      };
+      const by = Math.round(-Math.sin(t * 2) * 0.9);
+      frames.push({ lean: 1, by, legR: leg(t), legL: leg(t + Math.PI), armR: arm(t + Math.PI, true), armL: arm(t, false) });
+    }
+    return frames;
+  }
 
   // ---- hair masks (front view), origin (8,1), '#' base '+' light '-' dark ---
   const HAIR = {
@@ -468,9 +500,10 @@ const Sprites = (() => {
     const key = lookKey(look) + '|' + pose + '|' + frame + '|' + view;
     let c = cache.get(key);
     if (c) return c;
-    c = U.makeCanvas(SPR_W, SPR_H);
-    drawCharacter(c.getContext('2d'), look, pose, frame, view);
-    outline(c, '#120a18');
+    const base = U.makeCanvas(SPR_W, SPR_H);
+    drawCharacter(base.getContext('2d'), look, pose, frame, view);
+    outline(base, '#120a18');
+    c = epx2(base);
     cache.set(key, c);
     return c;
   }
@@ -488,6 +521,7 @@ const Sprites = (() => {
     ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, c.width, c.height);
+    c.lw = src.lw || src.width; c.lh = src.lh || src.height;
     tintCache.set(k, c);
     return c;
   }
@@ -504,8 +538,10 @@ const Sprites = (() => {
     if (c) return c;
     const src = get(look, 'idle', 0, 'F');
     const sx = 5, sy = 1, sw = 24, sh = 22;
-    c = U.makeCanvas(sw * scale, sh * scale);
-    c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw * scale, sh * scale);
+    // hi-res canvas; lw/lh give the logical size
+    c = U.makeCanvas(sw * scale * HIRES, sh * scale * HIRES);
+    c.getContext('2d').drawImage(src, sx * HIRES, sy * HIRES, sw * HIRES, sh * HIRES, 0, 0, c.width, c.height);
+    c.lw = sw * scale; c.lh = sh * scale;
     portraitCache.set(key, c);
     return c;
   }

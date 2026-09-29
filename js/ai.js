@@ -27,7 +27,8 @@ class AIController {
     this.seen = new Set();
     this.subDecided = false;
     this.wanderPt = null;
-    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
+    this.kunaiHoldT = 0;
+    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false, kunaiHeld: false, dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
     // preferred fighting range from the loadout
     let ranged = 0;
     for (const s of f.jutsu) if (s && ['proj', 'aoe'].includes(s.def.ai.kind)) ranged++;
@@ -77,7 +78,7 @@ class AIController {
   input(f, dt) {
     const o = this.out, d = this.d;
     this.time += dt;
-    o.light = o.heavyPressed = o.dash = o.kunai = o.awaken = o.ult = false;
+    o.light = o.heavyPressed = o.dash = o.kunai = o.awaken = o.ult = o.jump = false;
     o.j[0] = o.j[1] = o.j[2] = o.j[3] = false;
     o.block = o.heavy = o.charge = false;
     o.mx = 0; o.my = 0;
@@ -90,10 +91,12 @@ class AIController {
       if (q.a === 'block') this.blockT = Math.max(this.blockT, q.hold || 0.35);
       else if (q.a === 'dash') { o.dash = true; if (q.dir) { o.mx = q.dir[0]; o.my = q.dir[1]; this.dashDir = q.dir; this.dashDirT = 0.05; } }
       else if (q.a === 'light') o.light = true;
+      else if (q.a === 'jump') o.jump = true;
     }
     if (this.blockT > 0) { this.blockT -= dt; o.block = true; }
     if (this.heavyT > 0) { this.heavyT -= dt; o.heavy = true; }
     if (this.chargeT > 0) { this.chargeT -= dt; o.charge = true; }
+    o.kunaiHeld = this.kunaiHoldT > 0; if (this.kunaiHoldT > 0) this.kunaiHoldT -= dt;
     this.fleeT = Math.max(0, this.fleeT - dt);
 
     this.retargetT -= dt;
@@ -171,7 +174,10 @@ class AIController {
       const sp = Math.sqrt(sp2);
       const px = -p.vy / sp, py = p.vx / sp;
       const side = (cx * px + cy * py) > 0 ? -1 : 1;
-      if (r < d.dodge && tca > d.react * 0.5) this.queue.push({ a: 'dash', at: this.time + d.react * 0.5, dir: [px * side, py * side] });
+      if (r < d.dodge && tca > d.react * 0.5) {
+        if (Math.random() < 0.4 && f.z < 1) this.schedule('jump', d.react * 0.4); // hop over it
+        else this.queue.push({ a: 'dash', at: this.time + d.react * 0.5, dir: [px * side, py * side] });
+      }
       else if (r < d.dodge + d.parry && p.reflectable) this.schedule('block', Math.max(0, tca - 0.1), 0.25);
       else if (r < d.dodge + d.parry + d.block * 0.6) this.schedule('block', d.react * 0.5, Math.max(0.3, tca + 0.1));
     }
@@ -228,7 +234,16 @@ class AIController {
     // juggle chase after launcher
     if (f.state === 'attack' && f.atk && f.atk.finisher && f.atkConnected && Math.random() < d.combo) o.light = true;
 
-    if (dist > 2.8 && dist < 8 && los && f.kunai > 0 && Math.random() < 0.16) { o.kunai = true; return; }
+    // dive-kick onto targets below us
+    if (f.z > 20 && dist < 3 && Math.random() < 0.35 * d.combo) { o.heavyPressed = true; return; }
+    // chase airborne targets into the air
+    if (t.z > 18 && dist < 2 && f.z < 1 && Math.random() < d.combo) { o.jump = true; return; }
+    if (dist > 2.8 && dist < 8 && los && f.kunai > 0 && Math.random() < 0.16) {
+      o.kunai = true;
+      if (f.kunai >= 2 && Math.random() < 0.35) this.kunaiHoldT = 0.4; // charged shuriken
+      return;
+    }
+    if (dist > 2 && dist < 5 && f.z < 1 && Math.random() < 0.05 * d.aggro) { o.jump = true; return; }
     if (dist > 2.5 && dist < 5.5 && this.prefRange < 2 && los && Math.random() < 0.12 * d.aggro && f.dashCD <= 0) {
       const [nx, ny] = U.norm(t.x - f.x, t.y - f.y);
       o.dash = true; this.dashDir = [nx, ny]; this.dashDirT = 0.05;

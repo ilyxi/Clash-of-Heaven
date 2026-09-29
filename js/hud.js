@@ -39,6 +39,7 @@ const HUD = (() => {
       drawSlots(ctx, f, VW, VH, w);
     }
     drawMatchInfo(ctx, w, VW);
+    drawTargetFrame(ctx, w, VW);
     drawMinimap(ctx, w, VW);
     drawKillfeed(ctx, w, VW);
     drawCombo(ctx, f, VH);
@@ -54,40 +55,36 @@ const HUD = (() => {
   }
 
   function drawStatus(ctx, f, w) {
-    const x = 5, y = 5;
-    panel(ctx, x, y, 176, 52);
-    const por = Sprites.portrait(Render.lookFor(f), 2);
-    ctx.fillStyle = '#1a1226'; ctx.fillRect(x + 3, y + 3, 46, 46);
-    ctx.save(); ctx.beginPath(); ctx.rect(x + 3, y + 3, 46, 46); ctx.clip();
-    ctx.drawImage(por, x + 1, y + 5);
+    const x = 4, y = 4, pw = 152;
+    panel(ctx, x, y, pw, 40);
+    const por = Sprites.portrait(Render.lookFor(f), 1);
+    ctx.fillStyle = '#1a1226'; ctx.fillRect(x + 3, y + 3, 30, 34);
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 3, y + 3, 30, 34); ctx.clip();
+    drawHi(ctx, por, x + 6, y + 9);
     ctx.restore();
-    ctx.fillStyle = f.teamColor; ctx.fillRect(x + 3, y + 48, 46, 1);
-    const tx = x + 54;
-    Font.draw(ctx, f.name.toUpperCase(), tx, y + 4, '#ffffff', { outline: OUT });
-    Font.draw(ctx, 'LV' + f.level, x + 172, y + 4, '#ffe14a', { align: 'right', outline: OUT });
-    bar(ctx, tx, y + 14, 118, 7, f.hp / f.maxHp, f.hp < f.maxHp * 0.3 ? '#ff4a4a' : '#5ad06a');
-    Font.draw(ctx, Math.ceil(f.hp) + '/' + Math.round(f.maxHp), tx + 116, y + 14, '#ffffff', { align: 'right', outline: OUT });
-    bar(ctx, tx, y + 24, 118, 4, f.chakra / f.maxChakra, f.state === 'charge' && Math.floor(f.time * 10) % 2 ? '#bfe0ff' : '#4a8cff');
-    bar(ctx, tx, y + 31, 118, 2, f.level >= MAX_LEVEL ? 1 : f.xp / f.xpNext(), '#ffe14a');
-    // guard
-    if (f.guard < 100) bar(ctx, tx, y + 36, 58, 2, f.guard / 100, f.guard < 30 ? '#ff8a4a' : '#e8e8f0');
-    // substitution logs
+    ctx.fillStyle = f.teamColor; ctx.fillRect(x + 3, y + 36, 30, 1);
+    const tx = x + 37, bw = pw - 41;
+    Font.draw(ctx, f.name.split(' ')[0].toUpperCase(), tx, y + 3, '#ffffff', { outline: OUT });
+    Font.draw(ctx, 'LV' + f.level, x + pw - 4, y + 3, '#ffe14a', { align: 'right', outline: OUT });
+    bar(ctx, tx, y + 13, bw, 6, f.hp / f.maxHp, f.hp < f.maxHp * 0.3 ? '#ff4a4a' : '#5ad06a');
+    bar(ctx, tx, y + 21, bw, 3, f.chakra / f.maxChakra, f.state === 'charge' && Math.floor(f.time * 10) % 2 ? '#bfe0ff' : '#4a8cff');
+    bar(ctx, tx, y + 26, bw, 1, f.level >= MAX_LEVEL ? 1 : f.xp / f.xpNext(), '#ffe14a');
+    // bottom row: taijutsu level, kunai ammo, substitution logs
+    Font.draw(ctx, 'T' + f.taiLvl(), tx, y + 30, '#ffb070', { outline: OUT });
+    for (let k = 0; k < 4; k++) {
+      ctx.fillStyle = k < f.kunai ? '#d8dce6' : '#3a3a44';
+      ctx.fillRect(tx + 16 + k * 5, y + 30, 1, 6); ctx.fillRect(tx + 15 + k * 5, y + 34, 3, 1);
+    }
     for (let k = 0; k < 2; k++) {
       const full = f.sub >= (k + 1) * 50;
-      const lx = tx + 64 + k * 12, ly = y + 36;
+      const lx = tx + 40 + k * 12, ly = y + 32;
       ctx.fillStyle = full ? '#a8763e' : '#3a2a20'; ctx.fillRect(lx, ly, 10, 4);
       ctx.fillStyle = full ? '#e8c890' : '#4a3a2a'; ctx.fillRect(lx + 8, ly, 2, 4);
       if (!full && f.sub > k * 50) { ctx.fillStyle = '#6a4a2a'; ctx.fillRect(lx, ly + 3, Math.round(10 * ((f.sub - k * 50) / 50)), 1); }
     }
-    Font.draw(ctx, 'SUB', tx + 90, y + 35, '#b8a888', { outline: OUT });
-    Font.draw(ctx, 'TAI ' + f.taiLvl(), tx, y + 41, '#ffb070', { outline: OUT });
-    // kunai
-    for (let k = 0; k < 3; k++) {
-      ctx.fillStyle = k < f.kunai ? '#d8dce6' : '#3a3a44';
-      ctx.fillRect(tx + 40 + k * 6, y + 42, 1, 6); ctx.fillRect(tx + 39 + k * 6, y + 46, 3, 1);
-    }
-    // status icons
-    let sx = tx + 64;
+    if (f.guard < 100) bar(ctx, tx + 66, y + 33, bw - 66, 2, f.guard / 100, f.guard < 30 ? '#ff8a4a' : '#e8e8f0');
+    // statuses under the panel
+    let sx = x + 2;
     const st = [];
     if (f.st.burn > 0) st.push(['BURN', '#ff8a1f']);
     if (f.st.wet > 0) st.push(['WET', '#6ec6ff']);
@@ -95,7 +92,21 @@ const HUD = (() => {
     if (f.st.slow > 0) st.push(['SLOW', '#c08a4a']);
     if (f.st.stealth > 0) st.push(['HIDDEN', '#c9b6ff']);
     for (const b of f.buffs) st.push([b.id === 'stoneskin' ? 'STONE' : b.id === 'larmor' ? 'VOLT' : 'BUFF', '#ffe14a']);
-    for (const [t, c] of st.slice(0, 3)) { sx += Font.draw(ctx, t, sx, y + 42, c, { outline: OUT }) + 4; }
+    for (const [t, c] of st.slice(0, 4)) { sx += Font.draw(ctx, t, sx, y + 44, c, { outline: OUT }) + 5; }
+  }
+
+  // Health bar of the locked-on enemy, top centre.
+  function drawTargetFrame(ctx, w, VW) {
+    const p = w.player, t = p && p.lock;
+    if (!t || !t.alive) return;
+    const E = ELEMENTS[t.affinity] || ELEMENTS.shinobi;
+    const bw = 120, x = Math.round(VW / 2 - bw / 2), y = Render.VH - 70;
+    panel(ctx, x - 4, y - 3, bw + 8, 21);
+    Font.draw(ctx, t.name.toUpperCase(), x, y, t.teamColor, { outline: OUT });
+    Font.draw(ctx, 'LV' + t.level, x + bw, y, '#ffe14a', { align: 'right', outline: OUT });
+    bar(ctx, x, y + 10, bw, 4, t.hp / t.maxHp, t.hp < t.maxHp * 0.3 ? '#ff4a4a' : '#ff8a5a');
+    ctx.fillStyle = E.color; ctx.fillRect(x, y + 15, 12, 1);
+    if (t.awakened) { ctx.fillStyle = t.awakened.def.colors[1]; ctx.fillRect(x + 14, y + 15, Math.round((bw - 14) * t.awakened.t / t.awakened.def.dur), 1); }
   }
 
   function orb(ctx, cx, cy, r, k, col, label, ready, time, active) {
@@ -150,7 +161,7 @@ const HUD = (() => {
     const pad = Input.usingPad(), sony = Input.pad.sony;
     if (aw) {
       const k = f.awakened ? f.awakened.t / aw.dur : f.awak / 100;
-      orb(ctx, x0 - 20, y0 + 11, 11, k, aw.colors[1], pad ? (sony ? 'L3' : 'LS') : 'T', !f.awakened && f.awak >= 100, f.time, !!f.awakened);
+      orb(ctx, x0 - 20, y0 + 11, 11, k, aw.colors[1], pad ? (sony ? 'R1' : 'RB') : 'T', !f.awakened && f.awak >= 100, f.time, !!f.awakened);
     }
     if (ul) {
       const el = ELEMENTS[ul.element] || ELEMENTS.shinobi;
@@ -174,7 +185,7 @@ const HUD = (() => {
     }
     if (c.training) {
       Font.draw(ctx, 'TRAINING DOJO', cx, y, '#ffd35c', { align: 'center', scale: 2, outline: OUT });
-      Font.draw(ctx, 'PARTNERS REVIVE - METERS CHARGE FAST - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align: 'center', outline: OUT });
+      Font.draw(ctx, 'PARTNERS REVIVE - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align: 'center', outline: OUT });
       return;
     }
     const goal = c.winType === 'kills' ? 'FIRST TO ' + c.killLimit + ' KO' : c.stock + ' LIVES - LAST ONE STANDING';
@@ -307,25 +318,28 @@ const HUD = (() => {
   function drawControlsHint(ctx, VW, VH, t) {
     const sony = Input.pad.sony;
     const lines = Input.usingPad() ? (sony ? [
-      'L-STICK MOVE   R-STICK AIM   CROSS ATTACK   SQUARE HEAVY',
-      'CIRCLE DASH / SUBSTITUTE   R1 BLOCK (TAP = PARRY)',
-      'HOLD L2 + CROSS/CIRCLE/SQUARE/TRIANGLE = JUTSU',
-      'TRIANGLE KUNAI  L1 CHARGE  L3 AWAKEN  R2 ULTIMATE',
+      'L-STICK MOVE  CROSS JUMP  SQUARE ATTACK',
+      'TRIANGLE HEAVY  CIRCLE DASH  R1 BLOCK',
+      'R3 LOCK-ON  R2 KUNAI (HOLD)  L1 CHAKRA',
+      'HOLD L2 + FACE BUTTON = JUTSU',
+      'L2+R2 ULTIMATE  L2+R1 AWAKEN',
     ] : [
-      'L-STICK MOVE   R-STICK AIM   A ATTACK   X HEAVY',
-      'B DASH / SUBSTITUTE   RB BLOCK (TAP = PARRY)',
-      'HOLD LT + A / B / X / Y = JUTSU',
-      'Y KUNAI   LB CHARGE   LS AWAKEN   RT ULTIMATE',
+      'L-STICK MOVE  A JUMP  X ATTACK',
+      'Y HEAVY  B DASH  RB BLOCK',
+      'RS LOCK-ON  RT KUNAI (HOLD)  LB CHAKRA',
+      'HOLD LT + FACE BUTTON = JUTSU',
+      'LT+RT ULTIMATE  LT+RB AWAKEN',
     ]) : [
-      'WASD MOVE   MOUSE AIM   LMB ATTACK   RMB HEAVY (HOLD)',
-      'SPACE DASH / SUBSTITUTE   SHIFT BLOCK (TAP = PARRY)',
-      'Q E R F JUTSU   X KUNAI   C CHARGE CHAKRA',
-      'T AWAKEN   G ULTIMATE   TAB SCORES   ESC PAUSE',
+      'WASD MOVE  MOUSE AIM  SPACE JUMP',
+      'LMB ATTACK (HOLD = HEAVY)  RMB BLOCK',
+      'SHIFT DASH / SUBSTITUTE  Z LOCK-ON',
+      'Q E R F JUTSU  X KUNAI  C CHAKRA',
+      'T AWAKEN  G ULTIMATE  ESC PAUSE',
     ];
     ctx.globalAlpha = t > 11 ? (14 - t) / 3 : 1;
     const wdt = Math.max(...lines.map((l) => Font.measure(l))) + 12;
-    panel(ctx, 5, 62, wdt, 50);
-    lines.forEach((l, i) => Font.draw(ctx, l, 10, 67 + i * 11, '#e8dcc0'));
+    panel(ctx, 4, 58, wdt, lines.length * 10 + 6);
+    lines.forEach((l, i) => Font.draw(ctx, l, 9, 62 + i * 10, '#e8dcc0'));
     ctx.globalAlpha = 1;
     void VW; void VH;
   }

@@ -297,7 +297,7 @@ const UI = (() => {
     if (!existing || existing.id.startsWith('p_')) { ch.id = Roster.newId(); if (existing) ch.name = existing.name + ' II'; }
     let tab = 'look', selSlot = 0, filter = 'all';
     let view = 'F', flip = false, poseIdx = 0, facingIdx = 0;
-    const POSE_CYCLE = [['idle', 2], ['run', 4], ['jab', 1], ['cross', 1], ['kick', 1], ['uppercut', 1], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
+    const POSE_CYCLE = [['idle', 2], ['run', 8], ['jump', 1], ['airkick', 1], ['lunge', 1], ['spin', 2], ['jab', 1], ['cross', 1], ['kick', 1], ['uppercut', 1], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
 
     const prev = U.makeCanvas(SPR_W * 5, SPR_H * 5);
     prev.className = 'px';
@@ -321,7 +321,7 @@ const UI = (() => {
     function anim() {
       const t = (performance.now() - t0) / 1000;
       const [pose, n] = POSE_CYCLE[poseIdx % POSE_CYCLE.length];
-      const frame = Math.floor(t * (pose === 'run' ? 8 : 3)) % n;
+      const frame = Math.floor(t * (pose === 'run' ? 12 : 3)) % n;
       pctx.clearRect(0, 0, prev.width, prev.height);
       const spr = Sprites.get(ch.look, pose, frame, view);
       pctx.save();
@@ -500,20 +500,23 @@ const UI = (() => {
       h('div', { class: 'topbar' }, btn('Back', () => back(), 'small back'), h('h2', { text: 'HOW TO PLAY' })),
       h('div', { class: 'wrap panel howto' },
         h('section', null, h('h3', { text: 'CONTROLS' }), h('div', { class: 'keys' },
-          k('WASD', 'Move (arrow keys work too)'), k('MOUSE', 'Aim - jutsu fly toward the cursor'), k('LMB / J', 'Light attack - tap for a combo'),
-          k('RMB / K', 'Heavy attack - hold to charge, breaks guards'), k('SPACE', 'Dash (invulnerable start) / Substitution when hit'),
-          k('SHIFT / L', 'Block - tap right before a hit to PARRY'), k('Q E R F', 'Your four jutsu (or 1-4)'), k('X / MMB', 'Throw kunai (3 ammo)'),
+          k('WASD', 'Move (arrow keys work too)'), k('MOUSE', 'Aim - jutsu fly toward the cursor'), k('SPACE', 'Jump (press again in the air to double jump)'),
+          k('LMB / J', 'Attack - tap for combos, hold for a heavy'), k('K', 'Heavy attack (hold to charge)'), k('RMB / L', 'Block - tap right before a hit to PARRY'),
+          k('SHIFT', 'Dash (invulnerable start) / Substitution when hit'), k('Z / MMB', 'Lock on to an enemy (wheel switches target)'),
+          k('Q E R F', 'Your four jutsu (or 1-4)'), k('X', 'Throw kunai - hold for a piercing shuriken'),
           k('C', 'Hold to charge chakra'), k('T', 'Awaken (meter full)'), k('G / V', 'Ultimate (meter full)'), k('TAB', 'Scoreboard'), k('ESC', 'Pause'), k('M', 'Mute'))),
         h('section', null, h('h3', { text: 'CONTROLLER (PS5 / XBOX)' }),
           h('p', { text: 'Plug in or pair the controller, then press any button - browsers only reveal a controller after a button press. Chrome and Edge work best.' }),
           h('div', { class: 'keys' },
-            k('L STICK', 'Move'), k('R STICK', 'Aim (release to auto-aim the nearest enemy)'), k('CROSS / A', 'Light attack'), k('SQUARE / X', 'Heavy attack (hold)'),
-            k('CIRCLE / B', 'Dash / Substitution'), k('TRIANGLE / Y', 'Kunai'), k('R1 / RB', 'Block (tap = parry)'), k('L1 / LB', 'Charge chakra (hold)'),
-            k('HOLD L2 / LT', '+ Cross, Circle, Square, Triangle = jutsu 1-4'), k('L3 / D-UP', 'Awaken'), k('R2 / RT', 'Ultimate'), k('OPTIONS', 'Pause'), k('TOUCHPAD', 'Scoreboard')),
+            k('L STICK', 'Move'), k('R STICK', 'Aim (release to auto-aim the nearest enemy)'), k('CROSS / A', 'Jump (twice for double jump)'), k('SQUARE / X', 'Attack'),
+            k('TRIANGLE / Y', 'Heavy attack (hold)'), k('CIRCLE / B', 'Dash / Substitution'), k('R1 / RB', 'Block (tap = parry)'), k('L1 / LB', 'Charge chakra (hold)'),
+            k('R2 / RT', 'Kunai (hold for shuriken)'), k('R3 / RS', 'Lock on (d-pad left/right switches target)'),
+            k('HOLD L2 / LT', '+ Cross, Circle, Square, Triangle = jutsu 1-4'), k('L2 + R1', 'Awaken (or d-pad up)'), k('L2 + R2', 'Ultimate (or d-pad down)'), k('OPTIONS', 'Pause'), k('TOUCHPAD', 'Scoreboard')),
           h('p', { class: 'note', text: 'In menus: D-pad or left stick to move, Cross / A to select, Circle / B to go back, L1/R1 to switch tabs.' })),
         h('section', null, h('h3', { text: 'COMBAT BASICS' }),
-          h('p', { text: 'Mash light attack for a 4-hit string ending in a launcher. Launched enemies can be juggled with more hits or jutsu. Slam enemies into walls, trees and houses for bonus damage - big hits smash straight through.' }),
-          h('p', { text: 'Heavy attacks are slow but crush blocks. A fully charged heavy breaks any guard.' }),
+          h('p', { text: 'Attacks change with the direction you hold. Standing still: a 4-hit string ending in a launcher. Moving toward your target: a lunging punch. Moving away: a retreating spin kick. Every string flows into the others.' }),
+          h('p', { text: 'Heavies are signature moves: neutral = rising launcher, toward = rocket punch through everyone in the way, away = cyclone kick all around you. In the air, heavy is a dive kick that shock-waves on landing.' }),
+          h('p', { text: 'Jump (and double jump) to dodge low jutsu and hop over rocks and crates. Attack in the air for a 3-hit air string; jump right after a hit connects to chase into the air. The lower an enemy\'s health, the farther your hits send them.' }),
           h('p', { text: 'Dash through attacks: dodging a hit during the first moments of a dash is a PERFECT DODGE - you gain chakra and your next hit deals +30%.' })),
         h('section', null, h('h3', { text: 'DEFENCE' }),
           h('p', { text: 'Blocking stops melee and most of a jutsu, but drains your guard. Tapping block just before a hit PARRIES: melee attackers are stunned and projectiles are reflected back. Mashing block disables the parry window.' }),

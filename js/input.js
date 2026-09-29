@@ -11,14 +11,18 @@ const Input = (() => {
     left: ['KeyA', 'ArrowLeft'],
     right: ['KeyD', 'ArrowRight'],
     light: ['Mouse0', 'KeyJ'],
-    heavy: ['Mouse2', 'KeyK'],
-    dash: ['Space'],
-    block: ['ShiftLeft', 'ShiftRight', 'KeyL'],
+    heavy: ['KeyK'],               // also: hold left mouse
+    jump: ['Space'],
+    dash: ['ShiftLeft', 'ShiftRight'],
+    block: ['Mouse2', 'KeyL'],
+    lock: ['KeyZ', 'Mouse1'],
+    lockNext: ['WheelDown', 'KeyB'],
+    lockPrev: ['WheelUp'],
     j1: ['KeyQ', 'Digit1'],
     j2: ['KeyE', 'Digit2'],
     j3: ['KeyR', 'Digit3'],
     j4: ['KeyF', 'Digit4'],
-    kunai: ['KeyX', 'Mouse1'],
+    kunai: ['KeyX'],
     charge: ['KeyC'],
     awaken: ['KeyT', 'Digit5'],
     ultimate: ['KeyG', 'KeyV', 'Digit6'],
@@ -65,6 +69,7 @@ const Input = (() => {
     cv.addEventListener('mousedown', (e) => { codeDown('Mouse' + e.button); e.preventDefault(); });
     window.addEventListener('mouseup', (e) => codeUp('Mouse' + e.button));
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
+    cv.addEventListener('wheel', (e) => { queued.add(e.deltaY > 0 ? 'WheelDown' : 'WheelUp'); e.preventDefault(); }, { passive: false });
     window.addEventListener('mousemove', (e) => {
       mouse.cx = e.clientX; mouse.cy = e.clientY;
       mouse.lastMove = performance.now();
@@ -164,10 +169,15 @@ const Input = (() => {
     pad.lx = std.lx; pad.ly = std.ly; pad.rx = std.rx; pad.ry = std.ry;
     const b = (i) => std.b[i] > 0.45;
     const l2 = b(6);
+    // Cross jump, Square light, Triangle heavy (hold), Circle dash, R1 block,
+    // L1 charge, R2 kunai (hold = shuriken), R3 lock-on, d-pad left/right switch
+    // target; hold L2 for jutsu (face buttons), L2+R2 ultimate, L2+R1 awaken.
     const state = {
-      light: b(0) && !l2, dash: b(1) && !l2, heavy: b(2) && !l2, kunai: b(3) && !l2,
+      jump: b(0) && !l2, light: b(2) && !l2, heavy: b(3) && !l2, dash: b(1) && !l2,
       j1: l2 && b(0), j2: l2 && b(1), j3: l2 && b(2), j4: l2 && b(3),
-      charge: b(4), block: b(5), ultimate: b(7) || b(11) || b(13), awaken: b(10) || b(12),
+      charge: b(4) && !l2, block: b(5) && !l2, kunai: b(7) && !l2,
+      ultimate: (l2 && b(7)) || b(13), awaken: (l2 && b(5)) || b(12) || b(10),
+      lock: b(11), lockPrev: b(14), lockNext: b(15),
       pause: b(9), score: b(8) || b(17), left: b(14), right: b(15),
     };
     let any = !!(pad.lx || pad.ly || pad.rx || pad.ry);
@@ -230,8 +240,8 @@ const Input = (() => {
     if (!canvas) return null;
     const r = canvas.getBoundingClientRect();
     return {
-      x: ((mouse.cx - r.left) / r.width) * canvas.width,
-      y: ((mouse.cy - r.top) / r.height) * canvas.height,
+      x: ((mouse.cx - r.left) / r.width) * (canvas.logicalW || canvas.width),
+      y: ((mouse.cy - r.top) / r.height) * (canvas.logicalH || canvas.height),
     };
   }
 

@@ -10,15 +10,42 @@ const FFA_COLORS = ['#4aa8ff', '#ff5a4a', '#5ad06a', '#ffc83a', '#c07aff', '#ff8
 class PlayerController {
   constructor(f) {
     this.f = f;
-    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, dash: false, block: false, kunai: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
+    this.lmbHold = 0;
+    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false, dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
   }
-  input(f) {
+
+  validLock(f, t) {
+    return t && t.alive && Combat.enemies(f, t) && (t.st.stealth <= 0 || U.dist(f.x, f.y, t.x, t.y) < 1.4) && U.dist(f.x, f.y, t.x, t.y) < 20;
+  }
+
+  // Best lock target: favours enemies near where you're aiming, then distance.
+  pickLock(f, aimAng, exclude, dir) {
+    let best = null, bs = Infinity;
+    const cur = f.lock;
+    const curAng = cur ? Math.atan2(cur.y - f.y, cur.x - f.x) : aimAng;
+    for (const e of W.fighters) {
+      if (e === exclude || e.isClone || !this.validLock(f, e) || U.dist(f.x, f.y, e.x, e.y) > 16) continue;
+      const a = Math.atan2(e.y - f.y, e.x - f.x);
+      let score;
+      if (dir) {
+        // cycle clockwise / counter-clockwise from the current target
+        let d = U.angDiff(curAng, a) * dir;
+        if (d <= 0.01) d += TAU;
+        score = d;
+      } else score = Math.abs(U.angDiff(aimAng, a)) * 5 + U.dist(f.x, f.y, e.x, e.y) * 0.4;
+      if (score < bs) { bs = score; best = e; }
+    }
+    return best;
+  }
+
+  input(f, dt) {
     const o = this.out;
     const mv = Input.moveVector();
     const mag = Math.min(1, Math.hypot(mv.x, mv.y));
     const [wx, wy] = ISO.screenDirToWorld(mv.x, mv.y);
     o.mx = wx * mag; o.my = wy * mag;
     const pad = Input.pad;
+    let aimAng = f.facing;
     if (pad.active && (pad.rx || pad.ry) && !Input.usingMouse()) {
       const [ax, ay] = ISO.screenDirToWorld(pad.rx, pad.ry);
       o.ax = f.x + ax * 4.5; o.ay = f.y + ay * 4.5;
@@ -38,12 +65,34 @@ class PlayerController {
       else if (mag > 0.1) { o.ax = f.x + wx * 3; o.ay = f.y + wy * 3; }
       else { o.ax = f.x + Math.cos(f.facing) * 3; o.ay = f.y + Math.sin(f.facing) * 3; }
     }
+    if (o.ax !== null) aimAng = Math.atan2(o.ay - f.y, o.ax - f.x);
+
+    // ---- lock-on ----
+    if (f.lock && !this.validLock(f, f.lock)) f.lock = null;
+    if (Input.wasPressed('lock')) {
+      if (f.lock) { f.lock = null; SFX.play('uiBack', 0.4); }
+      else { f.lock = this.pickLock(f, aimAng); if (f.lock) SFX.play('ui', 0.6); }
+    }
+    if (f.lock && (Input.wasPressed('lockNext') || Input.wasPressed('lockPrev'))) {
+      const n = this.pickLock(f, aimAng, f.lock, Input.wasPressed('lockNext') ? 1 : -1);
+      if (n) { f.lock = n; SFX.play('ui', 0.5); }
+    }
+    if (f.lock) { o.ax = f.lock.x; o.ay = f.lock.y; }
+
+    // hold left mouse for a heavy (tap = light combo)
+    const lmb = Input.isDown('light') && !Input.usingPad();
+    const prevHold = this.lmbHold;
+    this.lmbHold = lmb ? this.lmbHold + dt : 0;
+    const holdHeavy = this.lmbHold >= 0.26;
+
     o.light = Input.wasPressed('light');
-    o.heavyPressed = Input.wasPressed('heavy');
-    o.heavy = Input.isDown('heavy');
+    o.heavyPressed = Input.wasPressed('heavy') || (holdHeavy && prevHold < 0.26);
+    o.heavy = Input.isDown('heavy') || holdHeavy;
+    o.jump = Input.wasPressed('jump');
     o.dash = Input.wasPressed('dash');
     o.block = Input.isDown('block');
     o.kunai = Input.wasPressed('kunai');
+    o.kunaiHeld = Input.isDown('kunai');
     o.charge = Input.isDown('charge');
     o.j[0] = Input.wasPressed('j1'); o.j[1] = Input.wasPressed('j2'); o.j[2] = Input.wasPressed('j3'); o.j[3] = Input.wasPressed('j4');
     o.awaken = Input.wasPressed('awaken');
@@ -138,7 +187,13 @@ class World {
   // ---- camera ---------------------------------------------------------------------
   camCenterFor(f) {
     let x = ISO.sx(f.x, f.y), y = ISO.sy(f.x, f.y, f.z * 0.5) - 14;
-    if (f === this.player && Input.usingMouse() && !this.over) {
+    const L = f === this.player && f.lock && f.lock.alive ? f.lock : null;
+    if (L) {
+      // frame both fighters, weighted toward the player, keeping the player on screen
+      const lx = ISO.sx(L.x, L.y), ly = ISO.sy(L.x, L.y, L.z * 0.5) - 14;
+      x += U.clamp((lx - x) * 0.4, -this.cam.w * 0.3, this.cam.w * 0.3);
+      y += U.clamp((ly - y) * 0.4, -this.cam.h * 0.28, this.cam.h * 0.28);
+    } else if (f === this.player && Input.usingMouse() && !this.over) {
       const m = Input.mouseView();
       if (m) { x += U.clamp((m.x - this.cam.w / 2) * 0.18, -50, 50); y += U.clamp((m.y - this.cam.h / 2) * 0.18, -34, 34); }
     }

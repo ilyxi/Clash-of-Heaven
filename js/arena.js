@@ -211,6 +211,11 @@ class Arena {
     // BFS distance from shore for every water tile (drives colour banding).
     const n = this.w * this.h;
     this.waterDepth = new Uint8Array(n);
+    this.nearWater = new Uint8Array(n);
+    for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) {
+      if (this.tiles[this.idx(i, j)] !== T_WATER) continue;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if (this.inBounds(i + di, j + dj)) this.nearWater[this.idx(i + di, j + dj)] = 1;
+    }
     const q = [];
     for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) {
       const k = this.idx(i, j);
@@ -239,28 +244,30 @@ class Arena {
   // ---- ground rendering ----------------------------------------------------------
   get originX() { return this.h * HALF_W; }
 
+  // The ground is baked at HIRES x logical resolution for finer texture detail.
   buildGround() {
-    const W = (this.w + this.h) * HALF_W, H = (this.w + this.h) * HALF_H + 8;
+    this.groundRes = HIRES;
+    const W = (this.w + this.h) * HALF_W * HIRES, H = ((this.w + this.h) * HALF_H + 8) * HIRES;
     this.ground = U.makeCanvas(W, H);
     this.gctx = this.ground.getContext('2d');
     this.gimg = this.gctx.createImageData(W, H);
-    this.renderGroundRect(0, 0, W, H);
+    this.renderGroundRect(0, 0, W / HIRES, H / HIRES);
   }
 
-  // Re-render a screen-space rectangle of the ground canvas.
-  renderGroundRect(x0, y0, w, h) {
-    const W = this.ground.width, H = this.ground.height;
-    x0 = U.clamp(Math.floor(x0), 0, W); y0 = U.clamp(Math.floor(y0), 0, H);
-    const x1 = U.clamp(Math.ceil(x0 + w), 0, W), y1 = U.clamp(Math.ceil(y0 + h), 0, H);
+  // Re-render a rectangle of the ground canvas (given in logical pixels).
+  renderGroundRect(lx0, ly0, lw, lh) {
+    const W = this.ground.width, H = this.ground.height, R = this.groundRes;
+    const x0 = U.clamp(Math.floor(lx0 * R), 0, W), y0 = U.clamp(Math.floor(ly0 * R), 0, H);
+    const x1 = U.clamp(Math.ceil((lx0 + lw) * R), 0, W), y1 = U.clamp(Math.ceil((ly0 + lh) * R), 0, H);
     const d = this.gimg.data, ox = this.originX;
     const out = U.hexToRgb(this.T.outside);
     for (let py = y0; py < y1; py++) {
       for (let px = x0; px < x1; px++) {
-        const a = (px - ox + 0.5) / HALF_W, b = (py + 0.5) / HALF_H;
+        const a = ((px + 0.5) / R - ox) / HALF_W, b = ((py + 0.5) / R) / HALF_H;
         const wx = (a + b) / 2, wy = (b - a) / 2;
         let c;
         if (wx < 0 || wy < 0 || wx >= this.w || wy >= this.h) {
-          const n = U.hash2(px >> 1, py >> 1, 99) * 10;
+          const n = U.hash2(px >> 2, py >> 2, 99) * 10;
           c = [out[0] + n, out[1] + n, out[2] + n];
         } else c = this.groundPixel(wx, wy, px, py);
         const k = (py * W + px) * 4;
@@ -332,7 +339,7 @@ class Arena {
     }
     c = [c[0], c[1], c[2]];
     // shoreline: darken land pixels right next to water
-    if (t !== T_WATER) {
+    if (t !== T_WATER && this.nearWater[k]) {
       const k2 = this.jitterTile(wx + 0.18, wy + 0.18), k3 = this.jitterTile(wx - 0.18, wy - 0.18);
       if (this.tiles[k2] === T_WATER || this.tiles[k3] === T_WATER) { c[0] *= 0.72; c[1] *= 0.72; c[2] *= 0.78; }
     }

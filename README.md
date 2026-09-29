@@ -37,7 +37,7 @@ After changing the source, rebuild the single file with `node tools/bundle.js`.
   - Water leaves puddles, and lightning arcs through them and through rivers.
   - Earth jutsu raise temporary walls.
   - Explosive barrels blow up.
-- **37 jutsu across six schools:** Fire, Water, Earth, Wind, Lightning and Shinobi arts. They include projectiles, beams, homing hounds, tornadoes, walls, swamps, leaps, clones, binds, reflect domes and more.
+- **43 jutsu across six schools:** Fire, Water, Earth, Wind, Lightning and Shinobi arts. They include projectiles, beams, homing hounds, tornadoes, walls, swamps, leaps, clones, binds, reflect domes and more.
 - **Elemental system.** Fire beats Wind, Wind beats Lightning, Lightning beats Earth, Earth beats Water, and Water beats Fire. Advantage gives bonus damage and decides jutsu clashes. The elements also interact:
   - Soaked targets take extra lightning damage.
   - Water puts out fires.
@@ -57,21 +57,26 @@ After changing the source, rebuild the single file with `node tools/bundle.js`.
 | --- | --- | --- | --- |
 | Move | `WASD` / arrows | Left stick | Left stick |
 | Aim | Mouse | Right stick (let go to auto-aim) | Right stick |
-| Light attack (combo) | `LMB` / `J` | Cross | A |
-| Heavy attack (hold to charge) | `RMB` / `K` | Square | X |
-| Dash / Substitution (when hit) | `Space` | Circle | B |
-| Block (tap just before a hit to parry) | `Shift` / `L` | R1 | RB |
+| Jump (press again for double jump) | `Space` | Cross | A |
+| Attack (combo) | `LMB` / `J` | Square | X |
+| Heavy / signature (hold to charge) | hold `LMB` / `K` | Triangle | Y |
+| Dash / Substitution (when hit) | `Shift` | Circle | B |
+| Block (tap just before a hit to parry) | `RMB` / `L` | R1 | RB |
+| Lock on / switch target | `Z` or `MMB` / mouse wheel | R3 / D-pad left-right | RS / D-pad left-right |
 | Jutsu 1–4 | `Q` `E` `R` `F` / `1`–`4` | Hold L2 + Cross / Circle / Square / Triangle | Hold LT + A / B / X / Y |
-| Kunai | `X` / `MMB` | Triangle | Y |
+| Kunai (hold for a piercing shuriken) | `X` | R2 | RT |
 | Charge chakra | hold `C` | hold L1 | hold LB |
-| Awaken | `T` | L3 or D-pad up | LS or D-pad up |
-| Ultimate | `G` / `V` | R2 | RT |
+| Awaken | `T` | L2 + R1 or D-pad up | LT + RB or D-pad up |
+| Ultimate | `G` / `V` | L2 + R2 or D-pad down | LT + RT or D-pad down |
 | Scoreboard / Pause / Mute | `Tab` / `Esc` / `M` | Touchpad / Options | Back / Start |
 
 Controllers also drive every menu: D-pad or left stick to move, Cross/A to select, Circle/B to go back, L1/R1 to switch tabs. **Press any button after the page opens**: browsers only reveal a controller once it has been pressed. If a PS5 controller still isn't detected, close Steam (its controller layer can take over the pad) or try Chrome or Edge.
 
 ## Combat tips
 
+- **Directional attacks (Brawlhalla-style).** Standing still gives a 4-hit string ending in a launcher; moving toward your target gives a lunging punch; moving away gives a retreating spin kick. Heavies are signature moves: neutral launcher, forward rocket punch, backward cyclone kick, and a dive kick in the air.
+- **Jumping.** Double jump over low jutsu and props, attack in the air for a 3-hit air string, and jump right after a hit connects to chase an enemy into the air. The lower a fighter's health, the farther hits knock them.
+- **Lock-on.** Lock a target to auto-aim every attack and technique at them; the camera frames you both and their health shows above your jutsu bar.
 - **Combos and juggles.** Mash light attack for a string that ends in a launcher. You can keep a launched enemy in the air with more hits or jutsu. Enemies knocked into walls take bonus damage, and big hits smash right through.
 - **Parry.** Tap block right before a hit lands. Melee attackers are stunned and projectiles fly back at their owner. Mashing block disables the parry.
 - **Perfect dodge.** Dash through an attack at the last moment. You gain chakra and your next hit deals +30% damage.

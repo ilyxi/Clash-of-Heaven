@@ -470,6 +470,7 @@ defJutsu({
     Combat.zone({
       src: f, x: p.x, y: p.y, r, dur: 5, tickEvery: 0.25, acc2: 0,
       onTick(e, z) {
+        if (e.z > 12) return; // jumping over the swamp
         e.applyStatus({ slow: { t: 0.4, amt: 0.55 } }, f);
         z.acc2 += 0.25;
         if (Math.random() < 0.5) Combat.hit(e, { src: f, dmg: 6 * D(L), element: 'earth', kind: 'dot', ability: 'mudswamp' });
@@ -1007,6 +1008,145 @@ defJutsu({
     });
     FX.custom({ life: 0.6, layer: 1, draw(ctx, cam, k) { const [sx, sy] = DF.sp(f.x, f.y, 12, cam); ctx.globalAlpha = 0.5 * (1 - k); ctx.fillStyle = '#cfe8ff'; PX.ellipseRing(ctx, sx, sy + 8, R * ISO_RX, R * ISO_RY + 6, 2); ctx.fillStyle = 'rgba(200,230,255,0.25)'; PX.ellipse(ctx, sx, sy, R * ISO_RX * 0.8, R * ISO_RY * 1.4); ctx.globalAlpha = 1; } });
     SFX.playAt('wind', f.x, f.y);
+  },
+});
+
+// ======================= MORE PROJECTILES ==================================
+defJutsu({
+  id: 'firebomb', name: 'Blossom Firebomb', element: 'fire', cost: 20, cd: 6, cast: 0.2, icon: 'bomb', pose: 'throw',
+  desc: 'Lob a blazing bomb that bursts on landing and scatters a ring of fireballs.',
+  mastery: 'Lv5: Scatters twice as many fireballs.', ai: { min: 2.5, max: 8, kind: 'aoe' },
+  use(f, L) {
+    const p = f.aimPoint(8, 2);
+    const T = 0.55 + p.dist * 0.03;
+    Combat.projectile({
+      src: f, x: f.x, y: f.y, z: 16 + f.z, vx: (p.x - f.x) / T, vy: (p.y - f.y) / T, vz: (0 - 16 - f.z) / T + 0.5 * 600 * T, gravity: 600,
+      kind: 'fireball', element: 'fire', size: 5, radius: 0.4, life: 3, dmg: 20 * D(L), knock: 3, stun: 0.4, ability: 'firebomb', clash: 1.5, reflectable: false, trail: TRAIL.fire,
+      explode: { r: 1.3, dmg: 38 * D(L), knock: 5, launch: 150, status: { burn: { t: 3, dps: 12 } } },
+      onImpact(pr) {
+        const n = L >= 5 ? 12 : 6;
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * TAU;
+          Combat.projectile({ src: f, x: pr.x, y: pr.y, z: 10, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, kind: 'flower', element: 'fire', size: 3, radius: 0.3, life: 0.45, dmg: 14 * D(L), knock: 2.5, stun: 0.3, status: { burn: { t: 2, dps: 10 } }, ability: 'firebomb', clash: 0.5, blockDmg: 10, trail: TRAIL.fire, explodeOnExpire: false });
+        }
+      },
+    });
+    SFX.playAt('fire', f.x, f.y, 0.7);
+  },
+});
+
+defJutsu({
+  id: 'watershark', name: 'Water Shark Missile', element: 'water', cost: 22, cd: 7, cast: 0.3, icon: 'shark',
+  desc: 'Launch a ravenous water shark that homes in, chomps through the first enemy and soaks them.',
+  mastery: 'Lv5: Two sharks.', ai: { min: 2, max: 10, kind: 'proj' },
+  use(f, L, aim) {
+    const n = L >= 5 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      shoot(f, aim.ang + (i - (n - 1) / 2) * 0.4, 10, {
+        kind: 'dragon', cols: ['#ffffff', '#8fd0ff', '#2f7ad0', '#123a78'], element: 'water', size: 5, radius: 0.5, life: 1.4, histLen: 6,
+        dmg: 62 * D(L), knock: 6, launch: 160, stun: 0.6, homing: 2.6, status: { wet: 6 }, ability: 'watershark', clash: 2, blockDmg: 40,
+        trail(p, dt) { TRAIL.hist(p); TRAIL.water(p, dt); },
+        onImpact(p) { FX.splash(p.x, p.y, 14, 1.2); W.arena.wetRadius(p.x, p.y, 1.2, 6); SFX.playAt('splash', p.x, p.y); },
+      });
+    }
+    SFX.playAt('water', f.x, f.y, 0.8);
+  },
+});
+
+defJutsu({
+  id: 'rockshot', name: 'Stone Shotgun', element: 'earth', cost: 16, cd: 5, cast: 0.15, icon: 'shotgun', pose: 'release',
+  desc: 'Blast a spray of jagged stones at close range. Devastating point-blank, blows enemies back.',
+  mastery: 'Lv5: More stones, wider spray.', ai: { min: 0.5, max: 4.5, kind: 'melee' },
+  use(f, L, aim) {
+    const n = L >= 5 ? 10 : 7, spread = L >= 5 ? 0.6 : 0.45;
+    for (let i = 0; i < n; i++) {
+      shoot(f, aim.ang + (i / (n - 1) - 0.5) * spread * 2 + U.rand(-0.05, 0.05), U.rand(12, 15), {
+        kind: 'rock', element: 'earth', size: 2, radius: 0.28, life: U.rand(0.3, 0.38), dmg: 13 * D(L), knock: 3.2, stun: 0.3,
+        ability: 'rockshot', clash: 0.4, blockDmg: 18, explodeOnExpire: false, reflectable: false, sfx: 'hit',
+      });
+    }
+    FX.debris(f.x + Math.cos(aim.ang) * 0.5, f.y + Math.sin(aim.ang) * 0.5, 12, MATERIALS.earth.colors, 6, 0.8);
+    SFX.playAt('earth', f.x, f.y, 0.6);
+    f.vx -= Math.cos(aim.ang) * 3; f.vy -= Math.sin(aim.ang) * 3; // recoil
+  },
+});
+
+defJutsu({
+  id: 'windrang', name: 'Gale Boomerang', element: 'wind', cost: 16, cd: 5, cast: 0.15, icon: 'boomerang', pose: 'throw',
+  desc: 'Hurl a spinning wind blade that flies out, then curves back to you, cutting on both passes.',
+  mastery: 'Lv5: Throws two boomerangs.', ai: { min: 2, max: 7, kind: 'proj' },
+  use(f, L, aim) {
+    const n = L >= 5 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      shoot(f, aim.ang + (i - (n - 1) / 2) * 0.22, 13, {
+        kind: 'shuriken', element: 'wind', size: 6, radius: 0.45, life: 1.6, dmg: 26 * D(L), knock: 2.5, stun: 0.4, pierce: 99, ability: 'windrang',
+        clash: 1, blockDmg: 30, pierceBlocks: true, explodeOnExpire: false, reflectable: false, trail: TRAIL.wind,
+        onUpdate(p, dt) {
+          if (p.t > 0.42 && !p.back) { p.back = true; p.hitSet = new Set(); }
+          if (p.back) {
+            if (!f.alive) { p.dead = true; return; }
+            const [nx, ny] = U.norm(f.x - p.x, f.y - p.y);
+            p.vx += (nx * 15 - p.vx) * Math.min(1, dt * 6); p.vy += (ny * 15 - p.vy) * Math.min(1, dt * 6);
+            if (U.dist(p.x, p.y, f.x, f.y) < 0.5) p.dead = true;
+          }
+        },
+      });
+    }
+    SFX.playAt('wind', f.x, f.y, 0.7);
+  },
+});
+
+defJutsu({
+  id: 'railbolt', name: 'Lightning Rail', element: 'lightning', cost: 22, cd: 7, cast: 0.35, icon: 'rail', pose: 'release',
+  desc: 'Snipe a piercing bolt of lightning across the whole screen after a split-second charge line.',
+  mastery: 'Lv5: Faster charge, heavier hit.', ai: { min: 3, max: 11, kind: 'proj' },
+  use(f, L, aim) {
+    const len = 11, ang = aim.ang;
+    const delay = L >= 5 ? 0.12 : 0.22;
+    Combat.hazard({
+      layer: 1,
+      update() {
+        if (this.t >= delay && !this.fired) {
+          this.fired = true;
+          const x0 = f.x, y0 = f.y, x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len;
+          Combat.line(f, x0, y0, x1, y1, 0.45, { kind: 'proj', dmg: (L >= 5 ? 82 : 66) * D(L), element: 'lightning', knock: 5, stun: 0.5, status: { para: 0.25 }, ability: 'railbolt', dirX: Math.cos(ang), dirY: Math.sin(ang) }, new Set());
+          Combat.lineBlocks(x0, y0, x1, y1, 0.3, 40, 'lightning', f);
+          this.x0 = x0; this.y0 = y0; this.x1 = x1; this.y1 = y1;
+          SFX.playAt('thunder', f.x, f.y, 0.6);
+          W.shakeAt(f.x, f.y, 4);
+        }
+        if (this.t > delay + 0.2) this.dead = true;
+      },
+      draw(ctx, cam) {
+        if (!this.fired) {
+          const [ax, ay] = DF.sp(f.x, f.y, 14, cam), [bx, by] = DF.sp(f.x + Math.cos(ang) * len, f.y + Math.sin(ang) * len, 14, cam);
+          ctx.fillStyle = 'rgba(160,200,255,0.55)'; PX.line(ctx, ax, ay, bx, by, 1);
+          return;
+        }
+        const [ax, ay] = DF.sp(this.x0, this.y0, 14, cam), [bx, by] = DF.sp(this.x1, this.y1, 14, cam);
+        DF.bolt(ctx, ax, ay, bx, by, '#5f7aff', '#ffffff', 4, 14, 3);
+      },
+    });
+  },
+});
+
+defJutsu({
+  id: 'shurikenstorm', name: 'Shuriken Storm', element: 'shinobi', cost: 18, cd: 6, cast: 0.1, icon: 'shuriken', pose: 'throw',
+  desc: 'Fire three rapid volleys of spinning shuriken while you keep moving.',
+  mastery: 'Lv5: Five volleys.', ai: { min: 1.5, max: 8, kind: 'proj' },
+  use(f, L) {
+    const volleys = L >= 5 ? 5 : 3;
+    f.startChannel({
+      dur: volleys * 0.14 + 0.05, move: 0.6, turn: 6, pose: 'throw', acc: 0.14, n: 0,
+      tick(f, dt, c) {
+        c.acc += dt;
+        if (c.acc >= 0.14 && c.n < volleys) {
+          c.acc = 0; c.n++;
+          for (const o of [-0.16, 0, 0.16]) shoot(f, f.facing + o, 16, { kind: 'shuriken', size: 3, radius: 0.25, life: 0.6, dmg: 11 * D(L), knock: 1.5, stun: 0.28, ability: 'shurikenstorm', clash: 0.5, blockDmg: 8, explodeOnExpire: false });
+          SFX.playAt('kunai', f.x, f.y, 0.5);
+        }
+      },
+    });
   },
 });
 

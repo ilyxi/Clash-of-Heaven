@@ -8,11 +8,12 @@
 // Draw a character-sized sprite so its feet anchor lands on (sx, sy).
 function blitSprite(ctx, canvas, sx, sy, flip) {
   sx = Math.round(sx); sy = Math.round(sy);
-  if (!flip) { ctx.drawImage(canvas, sx - SPR_OX, sy - SPR_OY); return; }
+  const w = canvas.lw || canvas.width, h = canvas.lh || canvas.height;
+  if (!flip) { ctx.drawImage(canvas, sx - SPR_OX, sy - SPR_OY, w, h); return; }
   ctx.save();
   ctx.translate(sx, 0);
   ctx.scale(-1, 1);
-  ctx.drawImage(canvas, -SPR_OX, sy - SPR_OY);
+  ctx.drawImage(canvas, -SPR_OX, sy - SPR_OY, w, h);
   ctx.restore();
 }
 

@@ -171,6 +171,44 @@ const ISO = {
   },
 };
 
+// ---- hi-res sprites -----------------------------------------------------------
+// Sprites are authored at 1x and upscaled 2x with EPX/Scale2x, which smooths
+// diagonals and curves while keeping hard pixel edges. `lw`/`lh` hold the
+// logical (1x) size so drawing code can keep working in logical pixels.
+const HIRES = 2;
+function epx2(src) {
+  const w = src.width, h = src.height;
+  const s = src.getContext('2d').getImageData(0, 0, w, h);
+  const sd = new Uint32Array(s.data.buffer);
+  for (let i = 0; i < sd.length; i++) if ((sd[i] >>> 24) === 0) sd[i] = 0; // normalise transparency
+  const out = U.makeCanvas(w * 2, h * 2);
+  const octx = out.getContext('2d');
+  const o = octx.createImageData(w * 2, h * 2);
+  const od = new Uint32Array(o.data.buffer);
+  const W2 = w * 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const P = sd[y * w + x];
+      const A = y > 0 ? sd[(y - 1) * w + x] : P;
+      const B = x < w - 1 ? sd[y * w + x + 1] : P;
+      const C = x > 0 ? sd[y * w + x - 1] : P;
+      const D = y < h - 1 ? sd[(y + 1) * w + x] : P;
+      const i = (y * 2) * W2 + x * 2;
+      od[i] = (C === A && C !== D && A !== B) ? A : P;
+      od[i + 1] = (A === B && A !== C && B !== D) ? B : P;
+      od[i + W2] = (D === C && D !== B && C !== A) ? C : P;
+      od[i + W2 + 1] = (B === D && B !== A && D !== C) ? D : P;
+    }
+  }
+  octx.putImageData(o, 0, 0);
+  out.lw = w; out.lh = h;
+  return out;
+}
+// Draw a (possibly hi-res) canvas at its logical size.
+function drawHi(ctx, c, x, y) {
+  ctx.drawImage(c, Math.round(x), Math.round(y), c.lw || c.width, c.lh || c.height);
+}
+
 // ---- pixel primitives (crisp, no anti-aliasing) ----------------------------
 const PX = {
   circle(ctx, cx, cy, r) {

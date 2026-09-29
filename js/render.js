@@ -52,11 +52,16 @@ const Render = (() => {
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     const zoom = (Settings.data && Settings.data.zoom) || 'normal';
-    const target = zoom === 'near' ? 250 : zoom === 'far' ? 400 : 310;
-    scale = Math.max(1, Math.round(h / target));
+    const target = zoom === 'near' ? 200 : zoom === 'far' ? 330 : 250;
+    // Prefer an even scale so the 2x hi-res canvas maps to whole screen pixels.
+    const s = h / target;
+    const even = Math.max(2, 2 * Math.round(s / 2)), any = Math.max(1, Math.round(s));
+    scale = Math.abs(h / even - target) <= target * 0.22 ? even : any;
     VW = Math.ceil(w / scale); VH = Math.ceil(h / scale);
-    canvas.width = VW; canvas.height = VH;
+    canvas.width = VW * HIRES; canvas.height = VH * HIRES;
+    canvas.logicalW = VW; canvas.logicalH = VH;
     canvas.style.width = VW * scale + 'px'; canvas.style.height = VH * scale + 'px';
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
     ctx.imageSmoothingEnabled = false;
     vignette = U.makeCanvas(VW, VH);
     const v = vignette.getContext('2d');
@@ -109,7 +114,7 @@ const Render = (() => {
     if (!lying && aw === 'spirit') {
       const big = Sprites.getTinted(look, pose, frame, view, '#9a60ff');
       ctx.globalAlpha = alpha * (0.3 + Math.sin(f.time * 6) * 0.05);
-      ctx.save(); ctx.translate(sx, sy + 2); ctx.scale(flip ? -2 : 2, 2); ctx.drawImage(big, -SPR_OX, -SPR_OY); ctx.restore();
+      ctx.save(); ctx.translate(sx, sy + 2); ctx.scale(flip ? -2 : 2, 2); ctx.drawImage(big, -SPR_OX, -SPR_OY, SPR_W, SPR_H); ctx.restore();
       ctx.globalAlpha = alpha * 0.5;
       ctx.fillStyle = '#c8a0ff';
       for (let k = 0; k < 4; k++) ctx.fillRect(sx - 9, sy - 46 + k * 5, 18, 1);
@@ -141,7 +146,7 @@ const Render = (() => {
       ctx.translate(sx + (flip ? 13 : -13), sy - 3);
       ctx.rotate(flip ? -Math.PI / 2 : Math.PI / 2);
       if (flip) ctx.scale(1, 1);
-      ctx.drawImage(cv, -SPR_OX, -SPR_OY + 6);
+      ctx.drawImage(cv, -SPR_OX, -SPR_OY + 6, SPR_W, SPR_H);
       ctx.restore();
     } else {
       blitSprite(ctx, cv, sx, sy, flip);
@@ -207,13 +212,13 @@ const Render = (() => {
     ctx.globalAlpha = alpha;
     if (rise) {
       ctx.save(); ctx.beginPath(); ctx.rect(dx, dy - rise - 60, spr.c.width, spr.c.height - TILE_H + 60 + 8); ctx.clip();
-      ctx.drawImage(spr.c, dx, dy);
+      drawHi(ctx, spr.c, dx, dy);
       ctx.restore();
-    } else ctx.drawImage(spr.c, dx, dy);
+    } else drawHi(ctx, spr.c, dx, dy);
     if (b.flash > 0) {
       b.flash -= dt;
       ctx.globalAlpha = alpha * 0.7;
-      ctx.drawImage(Sprites_tint(spr.c, '#ffffff'), dx, dy);
+      drawHi(ctx, Sprites_tint(spr.c, '#ffffff'), dx, dy);
     }
     if (b.hp < b.maxHp * 0.6 && b.maxHp !== Infinity) {
       ctx.globalAlpha = alpha;
@@ -221,7 +226,7 @@ const Render = (() => {
     }
     if (b.burning > 0) {
       ctx.globalAlpha = 0.25 + Math.random() * 0.15;
-      ctx.drawImage(Sprites_tint(spr.c, '#ff6a1a'), dx, dy);
+      drawHi(ctx, Sprites_tint(spr.c, '#ff6a1a'), dx, dy);
     }
     ctx.globalAlpha = 1;
   }
@@ -236,12 +241,15 @@ const Render = (() => {
     x.drawImage(c, 0, 0);
     x.globalCompositeOperation = 'source-atop';
     x.fillStyle = col; x.fillRect(0, 0, t.width, t.height);
+    t.lw = c.lw; t.lh = c.lh;
     m[col] = t;
     return t;
   }
 
   // ---- world ---------------------------------------------------------------------------
   function world(w) {
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     const now = performance.now();
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
@@ -254,8 +262,9 @@ const Render = (() => {
     // ground
     const gx = cam.x + A.originX, gy = cam.y;
     const sx0 = Math.max(0, gx), sy0 = Math.max(0, gy);
-    const sw = Math.min(A.ground.width - sx0, VW - (sx0 - gx)), sh = Math.min(A.ground.height - sy0, VH - (sy0 - gy));
-    if (sw > 0 && sh > 0) ctx.drawImage(A.ground, sx0, sy0, sw, sh, sx0 - gx, sy0 - gy, sw, sh);
+    const sw = Math.min(A.ground.width / A.groundRes - sx0, VW - (sx0 - gx)), sh = Math.min(A.ground.height / A.groundRes - sy0, VH - (sy0 - gy));
+    const GR = A.groundRes;
+    if (sw > 0 && sh > 0) ctx.drawImage(A.ground, sx0 * GR, sy0 * GR, sw * GR, sh * GR, sx0 - gx, sy0 - gy, sw, sh);
 
     // visible tile range
     const c1 = w.screenToWorld(-40, -120), c2 = w.screenToWorld(VW + 40, -120), c3 = w.screenToWorld(-40, VH + 110), c4 = w.screenToWorld(VW + 40, VH + 110);
@@ -337,11 +346,12 @@ const Render = (() => {
     FX.draw(ctx, cam, 1);
     drawReticle(w, cam);
     for (const f of w.fighters) drawOverhead(ctx, f, cam, viewer);
+    drawLockMarker(w, cam);
     FX.drawTexts(ctx, cam);
 
     // atmosphere
     if (A.T.tint) { ctx.fillStyle = A.T.tint; ctx.fillRect(0, 0, VW, VH); }
-    ctx.drawImage(vignette, 0, 0);
+    ctx.drawImage(vignette, 0, 0, VW, VH);
     drawOffscreenArrows(w, cam, viewer);
     drawMoon(w);
     if (w.flashT > 0) {
@@ -352,13 +362,40 @@ const Render = (() => {
     if (w.cutin) drawCutin(w.cutin);
   }
 
+  // Rotating brackets around the locked-on enemy.
+  function drawLockMarker(w, cam) {
+    const p = w.player, t = p && p.lock;
+    if (!t || !t.alive || !p.alive) return;
+    const [sx, sy] = DF.sp(t.x, t.y, t.z, cam);
+    const cy = sy - 15, r = 13 + Math.sin(w.realTime * 6) * 1.5;
+    const a0 = w.realTime * 2;
+    ctx.fillStyle = '#120a18';
+    for (let k = 0; k < 4; k++) {
+      const a = a0 + k * Math.PI / 2;
+      const bx = sx + Math.cos(a) * r, by = cy + Math.sin(a) * r * 0.9;
+      PX.line(ctx, bx, by, bx - Math.cos(a + 0.6) * 5, by - Math.sin(a + 0.6) * 5, 3);
+      PX.line(ctx, bx, by, bx - Math.cos(a - 0.6) * 5, by - Math.sin(a - 0.6) * 5, 3);
+    }
+    ctx.fillStyle = '#ff4a5a';
+    for (let k = 0; k < 4; k++) {
+      const a = a0 + k * Math.PI / 2;
+      const bx = sx + Math.cos(a) * r, by = cy + Math.sin(a) * r * 0.9;
+      PX.line(ctx, bx, by, bx - Math.cos(a + 0.6) * 5, by - Math.sin(a + 0.6) * 5, 1);
+      PX.line(ctx, bx, by, bx - Math.cos(a - 0.6) * 5, by - Math.sin(a - 0.6) * 5, 1);
+    }
+    // ground ring so you can read their position while they're airborne
+    ctx.fillStyle = 'rgba(255,74,90,0.7)';
+    const [gx, gy] = DF.sp(t.x, t.y, 0, cam);
+    PX.ellipseRing(ctx, gx, gy, 10, 5, 1);
+  }
+
   // Ground reticle at the player's aim point (easier to read than the OS cursor).
   let cursorHidden = false;
   function drawReticle(w, cam) {
     const p = w.player;
-    const show = !!(p && p.alive && !w.demo && !w.over && Input.usingMouse());
+    const show = !!(p && p.alive && !w.demo && !w.over && Input.usingMouse() && !p.lock);
     if (show !== cursorHidden) { cursorHidden = show; canvas.style.cursor = show ? 'none' : 'crosshair'; }
-    if (!p || !p.alive || w.demo || w.over) return;
+    if (!p || !p.alive || w.demo || w.over || p.lock) return;
     const [sx, sy] = DF.sp(p.aimX, p.aimY, 0, cam);
     const r = 5 + (Math.floor(w.realTime * 3) % 2);
     ctx.globalAlpha = 0.8;
@@ -422,9 +459,9 @@ const Render = (() => {
     ctx.fillStyle = U.rgba(el.light, 0.35);
     for (let n = 0; n < 12; n++) { const ly = y - h / 2 + 4 + ((n * 37 + Math.floor(c.t * 60) * 13) % (h - 8)); ctx.fillRect((n * 97 + c.t * 900) % VW, ly, 30 + (n % 3) * 20, 1); }
     const por = Sprites.portrait(lookFor(f), 3);
-    const px = Math.round(U.lerp(-por.width, VW * 0.18, U.easeOutCubic(Math.min(1, c.t / 0.25))) + c.t * 12);
+    const px = Math.round(U.lerp(-por.lw, VW * 0.18, U.easeOutCubic(Math.min(1, c.t / 0.25))) + c.t * 12);
     ctx.save(); ctx.beginPath(); ctx.rect(0, y - h / 2 + 2, VW, h - 4); ctx.clip();
-    ctx.drawImage(por, px, y - por.height / 2 + 6);
+    drawHi(ctx, por, px, y - por.lh / 2 + 6);
     ctx.restore();
     const tx = Math.round(U.lerp(VW + 50, VW * 0.42, U.easeOutCubic(Math.min(1, c.t / 0.3))));
     Font.draw(ctx, 'ULTIMATE', tx, y - 18, el.light, { outline: '#120a18' });
