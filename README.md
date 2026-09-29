@@ -1,0 +1,85 @@
+# Clash of Heaven
+
+A 32-bit-style pixel-art **shinobi arena brawler** that runs in the browser. Up to 10 fighters battle in free-for-all or team matches on big, destructible isometric maps, using elemental jutsu, awakenings and ultimates. It's loosely inspired by classic ninja anime games.
+
+Everything is procedurally generated in code: sprites, tiles, maps, icons, sound effects and music. There are no assets, dependencies or build step.
+
+## Play
+
+Open `index.html` in a modern browser. Or serve the folder with any static server:
+
+```sh
+npx http-server .     # or: python3 -m http.server
+```
+
+Because the game is fully static, you can host it with **GitHub Pages**. In the repository settings, go to Pages and choose "Deploy from branch" with the root of your branch.
+
+## Features
+
+- **Up to 10 fighters.** Play free-for-all or 2 to 5 teams against AI at four difficulties (Genin, Chunin, Jonin, Kage). You can also play Mixed difficulty, or spectate an all-AI match.
+- **Two win modes.** In KO Race, the first player or team to N knock-outs wins. In Survival, fighters have limited lives and the last one standing wins. Both modes can have an optional time limit.
+- **Four large arenas**, generated from a new seed every match:
+  - Hidden Leaf Valley: a village, a river, forests and a training ground
+  - Valley of Echoes: twin statues, a great river and a lake at sunset
+  - Sunken Sand Ruins: a temple, colonnades and an oasis
+  - Frostfang Peaks: a mountain shrine and a frozen lake
+- **Destructible arenas.**
+  - You can smash trees, rocks, crates, walls, pillars and whole houses one block at a time.
+  - Explosions leave craters and scorch marks.
+  - Fire spreads through grass, trees and wooden buildings.
+  - Water leaves puddles, and lightning arcs through them and through rivers.
+  - Earth jutsu raise temporary walls.
+  - Explosive barrels blow up.
+- **37 jutsu across six schools:** Fire, Water, Earth, Wind, Lightning and Shinobi arts. They include projectiles, beams, homing hounds, tornadoes, walls, swamps, leaps, clones, binds, reflect domes and more.
+- **Elemental system.** Fire beats Wind, Wind beats Lightning, Lightning beats Earth, Earth beats Water, and Water beats Fire. Advantage gives bonus damage and decides jutsu clashes. The elements also interact:
+  - Soaked targets take extra lightning damage.
+  - Water puts out fires.
+  - Wind fans flames and throws enemy fireballs back.
+- **6 awakenings:** Crimson Eye, Sage Mode, Beast Cloak, Eight Gates, Spirit Armor and Cursed Seal. Each is a timed transformation with unique buffs and visuals.
+- **8 ultimates**, each with an anime-style cut-in: Heavenly Meteor, Chakra Cannon, Thunder Kirin, Great Tsunami, Tempest Shuriken, Thousand Clones, Inferno Dragon and Crimson Moon.
+- **In-match progression.**
+  - Your shinobi levels up from 1 to 10 from damage, KOs, assists and parries, gaining health and damage.
+  - Every jutsu has its own mastery from Lv1 to Lv5. It gets stronger as you use it, and Lv5 unlocks a mastery perk.
+  - Taijutsu mastery adds a 5th combo hit, then an air-chase follow-up, then an unblockable full-charge heavy.
+- **Character creator.** Choose hair style and colors, skin, eyes, outfit, headband and extras. Then pick an elemental affinity, any four jutsu, an awakening and an ultimate. Your shinobi are saved in the browser.
+- **Training Dojo.** Practice on dummies and a sparring partner, with meters that charge quickly.
+
+## Controls
+
+| Action | Keyboard / Mouse | Gamepad |
+| --- | --- | --- |
+| Move | `WASD` / arrows | Left stick |
+| Aim | Mouse | Right stick |
+| Light attack (combo) | `LMB` / `J` | A |
+| Heavy attack (hold to charge) | `RMB` / `K` | X |
+| Dash / Substitution (when hit) | `Space` | B |
+| Block (tap just before a hit to parry) | `Shift` / `L` | RB |
+| Jutsu 1–4 | `Q` `E` `R` `F` / `1`–`4` | LT + A/B/X/Y |
+| Kunai | `X` / `MMB` | LB |
+| Charge chakra | hold `C` | RT |
+| Awaken | `T` | L3 |
+| Ultimate | `G` / `V` | R3 |
+| Scoreboard / Pause / Mute | `Tab` / `Esc` / `M` | Back / Start |
+
+## Combat tips
+
+- **Combos and juggles.** Mash light attack for a string that ends in a launcher. You can keep a launched enemy in the air with more hits or jutsu. Enemies knocked into walls take bonus damage, and big hits smash right through.
+- **Parry.** Tap block right before a hit lands. Melee attackers are stunned and projectiles fly back at their owner. Mashing block disables the parry.
+- **Perfect dodge.** Dash through an attack at the last moment. You gain chakra and your next hit deals +30% damage.
+- **Substitution.** Press dash while you're being comboed. You swap with a log and reappear behind your attacker. The gauge holds two uses.
+- **Heavy attacks** break guards, and a fully charged heavy shatters any block.
+
+## Code layout
+
+| File | Purpose |
+| --- | --- |
+| `js/util.js`, `js/font.js` | Math, color, iso-projection helpers and a 5×7 bitmap font |
+| `js/audio.js`, `js/input.js` | Synthesized sound effects and music; keyboard, mouse and gamepad input |
+| `js/sprites.js`, `js/art.js`, `js/icons.js` | Procedural pixel-art ninjas, map props and jutsu icons |
+| `js/arena.js` | Tile map, generators for each theme, destruction, fire and water, collision, A* pathfinding |
+| `js/combat.js`, `js/fighter.js` | Damage resolution, projectiles, hazards, and the fighter state machine |
+| `js/data/*.js` | Elements, looks, the jutsu catalog, awakenings, ultimates and preset shinobi |
+| `js/ai.js` | Bot brains that drive fighters through the same input struct as the player |
+| `js/world.js` | Match rules, spawning, kills and assists, projectile clashes, camera |
+| `js/render.js`, `js/drawfx.js`, `js/fx.js`, `js/hud.js` | Depth-sorted iso rendering, effects, particles and the HUD |
+| `js/ui.js`, `js/main.js` | HTML menus and the main loop (fixed 60 Hz simulation) |

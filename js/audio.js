@@ -134,7 +134,10 @@ const SFX = (() => {
     if (last[name] && now - last[name] < 0.035) return;
     if (voices > 48) return;
     last[name] = now;
-    try { P[name](vol, pan); } catch (e) { /* audio errors never break gameplay */ }
+    try { P[name](vol, pan); } catch (e) {
+      // audio errors never break gameplay; report each broken sound once
+      if (!last['err:' + name]) { last['err:' + name] = 1; console.warn('sfx ' + name + ' failed: ' + e.message); }
+    }
   }
 
   function playAt(name, x, y, vol = 1) {

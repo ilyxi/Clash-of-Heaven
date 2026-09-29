@@ -67,6 +67,15 @@ const UI = (() => {
     return c;
   }
 
+  function randomPortrait() {
+    const c = U.makeCanvas(24, 22);
+    c.className = 'px';
+    const x = c.getContext('2d');
+    x.fillStyle = '#241a34'; x.fillRect(2, 1, 20, 20);
+    Font.draw(x, '?', 12, 7, '#ffd35c', { align: 'center', outline: '#120a18' });
+    return c;
+  }
+
   function iconImg(canvas, size = 48) { return h('img', { class: 'px', src: canvas.toDataURL(), width: size, height: size, alt: '' }); }
 
   function elTag(el) {
@@ -82,6 +91,7 @@ const UI = (() => {
       h('div', { class: 'menu' },
         btn('Quick Battle', () => Game.quickBattle(), 'primary'),
         btn('Custom Battle', () => setup()),
+        btn('Training Dojo', () => Game.training()),
         btn('Create Shinobi', () => creator(null, title)),
         btn('Roster', () => roster()),
         btn('How to Play', () => howto(title)),
@@ -155,7 +165,7 @@ const UI = (() => {
       if (s.mode === 'teams') { teamSel.value = sl.team; teamSel.style.color = TEAM_COLORS[sl.team]; }
       const diffSel = isPlayer ? h('span', { class: 'you', text: 'YOU' }) : h('select', { onchange: (e) => { sl.diff = e.target.value; save(); } }, ...Object.keys(AI_DIFF).map((k) => h('option', { value: k, text: AI_DIFF[k].name })));
       if (!isPlayer) diffSel.value = sl.diff in AI_DIFF ? sl.diff : 'normal';
-      list.appendChild(h('div', { class: 'srow' }, ch ? portraitCanvas(ch.look, 1) : h('canvas', { width: 24, height: 22 }), sel, teamSel, diffSel));
+      list.appendChild(h('div', { class: 'srow' }, ch ? portraitCanvas(ch.look, 1) : randomPortrait(), sel, teamSel, diffSel));
     });
 
     const fighters = h('div', { class: 'panel' },

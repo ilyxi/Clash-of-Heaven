@@ -56,6 +56,17 @@ const Game = {
     this.startFromSetup(q);
   },
 
+  training() {
+    const s = UI.loadSetup();
+    const me = Roster.byId(s.player) || Roster.all()[0];
+    const partners = U.shuffle(PRESETS.filter((p) => p.id !== me.id)).slice(0, 3);
+    this.lastSetup = null;
+    this.start({
+      map: 'forest', mode: 'ffa', winType: 'kills', killLimit: 99999, timeLimit: 0, training: true, seed: (Math.random() * 1e9) | 0,
+      entries: [{ char: U.deepCopy(me), isPlayer: true }, ...partners.map((c, i) => ({ char: U.deepCopy(c), isPlayer: false, diff: i === 2 ? 'easy' : 'dummy' }))],
+    });
+  },
+
   startFromSetup(s) {
     this.lastSetup = U.deepCopy(s);
     this.start(UI.buildConfig(s));
@@ -133,7 +144,7 @@ const Game = {
       if (n >= 5) this.acc = 0;
     }
     Render.world(w);
-    if (this.screen === 'game') HUD.draw(Render.ctx, w);
+    if (this.screen === 'game' && !this.resultsShown) HUD.draw(Render.ctx, w);
     if (this.screen === 'game' && w.over && w.overT > 3.2 && !this.resultsShown) {
       this.resultsShown = true;
       UI.results(w);

@@ -179,7 +179,7 @@ const Art = (() => {
     });
   }
 
-  function pine(seed, pal) {
+  function pine(seed, pal, snowy) {
     return sprite(36, 60, 18, 54, (ctx) => {
       shadow(ctx, 18, 54, 10, 4);
       ctx.fillStyle = '#4a2e1a'; ctx.fillRect(16, 42, 4, 12);
@@ -191,6 +191,10 @@ const Art = (() => {
           ctx.fillStyle = pal[0]; ctx.fillRect(18 - w, by - hh + y, w * 2, 1);
           ctx.fillStyle = pal[1]; ctx.fillRect(18 - w, by - hh + y, Math.max(1, w - 1), 1);
           if (y % 3 === 0) { ctx.fillStyle = pal[2]; ctx.fillRect(18 - w + 1, by - hh + y, Math.max(1, (w >> 1)), 1); }
+          if (snowy && (y < 3 || (y === hh - 1 && U.hash2(by, y, seed) > 0.3))) {
+            ctx.fillStyle = y < 2 ? '#f4f8ff' : '#d8e4f4';
+            ctx.fillRect(18 - w, by - hh + y, w * 2 - (y === hh - 1 ? w : 0), 1);
+          }
         }
       }
       ctx.fillStyle = pal[2]; ctx.fillRect(17, 5, 2, 3);
@@ -381,7 +385,7 @@ const Art = (() => {
       : [['#2f6a2a', '#3f8a36', '#62b04a', '#a8e070'], ['#285a36', '#357a44', '#4f9e56', '#8fd08a'], ['#3a6a1f', '#4f8a2a', '#7ab03f', '#c8e070']][v % 3];
     switch (type) {
       case 'tree': s = tree(v * 7 + 3, leafPal); break;
-      case 'pine': s = pine(v * 5 + 1, ['#1f4a2f', '#2f6a3f', '#4f8a4f', '#8fc08a']); break;
+      case 'pine': s = pine(v * 5 + 1, ['#1f4a2f', '#2f6a3f', '#4f8a4f', '#8fc08a'], theme === 'snow'); break;
       case 'palm': s = palm(v * 3 + 11); break;
       case 'bush': s = bush(v, leafPal); break;
       case 'rock': s = rock(v * 13 + 7, theme === 'desert' ? '#c8a070' : theme === 'valley' ? '#8a7a6a' : '#8a8a90', false); break;

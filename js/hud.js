@@ -157,6 +157,11 @@ const HUD = (() => {
       Font.draw(ctx, U.fmtTime(w.timeLeft), cx, y, col, { align: 'center', scale: 2, outline: OUT });
       y += 18;
     }
+    if (c.training) {
+      Font.draw(ctx, 'TRAINING DOJO', cx, y, '#ffd35c', { align: 'center', scale: 2, outline: OUT });
+      Font.draw(ctx, 'PARTNERS REVIVE - METERS CHARGE FAST - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align: 'center', outline: OUT });
+      return;
+    }
     const goal = c.winType === 'kills' ? 'FIRST TO ' + c.killLimit + ' KO' : c.stock + ' LIVES - LAST ONE STANDING';
     Font.draw(ctx, goal, cx, y, '#c8c0d8', { align: 'center', outline: OUT });
     y += 11;
@@ -281,9 +286,10 @@ const HUD = (() => {
     ];
     ctx.globalAlpha = t > 11 ? (14 - t) / 3 : 1;
     const wdt = 250;
-    panel(ctx, 5, VH - 60, wdt, 52);
-    lines.forEach((l, i) => Font.draw(ctx, l, 10, VH - 55 + i * 11, '#e8dcc0'));
+    panel(ctx, 5, 62, wdt, 50);
+    lines.forEach((l, i) => Font.draw(ctx, l, 10, 67 + i * 11, '#e8dcc0'));
     ctx.globalAlpha = 1;
+    void VW; void VH;
   }
 
   function drawScoreboard(ctx, w, VW, VH) {

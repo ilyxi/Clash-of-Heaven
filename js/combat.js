@@ -100,7 +100,11 @@ const Combat = {
     if (h.kind !== 'dot') {
       if (inCombo) t.comboHits++; else t.comboHits = 1;
       t.lastHitTime = now;
-      if (src) { src.lastComboTarget = t; src.comboShow = t.comboHits; src.comboShowT = 1.4; }
+      if (src) {
+        src.lastComboTarget = t; src.comboShow = t.comboHits; src.comboShowT = 1.4;
+        const owner = src.owner || src;
+        owner.bestCombo = Math.max(owner.bestCombo || 0, t.comboHits);
+      }
       const armored = t.hasArmor() && !h.armorBreak;
       let [kx, ky] = h.dirX !== undefined ? [h.dirX, h.dirY] : U.norm(t.x - sx, t.y - sy);
       if (kx === 0 && ky === 0) { kx = Math.cos(t.facing + Math.PI); ky = Math.sin(t.facing + Math.PI); }

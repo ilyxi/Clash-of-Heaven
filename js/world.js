@@ -100,19 +100,36 @@ class World {
       const sp = spawns[order[n] % spawns.length];
       f.x = sp.x + U.rand(-0.2, 0.2); f.y = sp.y + U.rand(-0.2, 0.2);
       f.facing = Math.atan2(this.arena.h / 2 - f.y, this.arena.w / 2 - f.x);
-      f.ctrl = e.isPlayer ? new PlayerController(f) : new AIController(f, e.diff || 'normal');
+      f.ctrl = e.isPlayer ? new PlayerController(f) : e.diff === 'dummy' ? null : new AIController(f, e.diff || 'normal');
       f.spawnProt = 2;
       f.diff = e.diff;
       this.fighters.push(f);
       this.teamScore[team] = 0;
       if (e.isPlayer) this.player = f;
     });
+    if (cfg.training && this.player) {
+      // gather the practice partners around the player
+      this.fighters.filter((f) => f !== this.player).forEach((f, i) => this.placeNear(f, this.player, 3 + i * 0.8));
+    }
     this.camTarget = this.player || this.fighters[0];
     this.snapCamera();
     this.timeLeft = cfg.timeLimit || 0;
   }
 
   get alivePlayers() { return this.fighters.filter((f) => !f.isClone); }
+
+  placeNear(f, anchor, dist) {
+    for (let k = 0; k < 24; k++) {
+      const a = U.rand(0, TAU);
+      const x = anchor.x + Math.cos(a) * dist, y = anchor.y + Math.sin(a) * dist;
+      if (!this.arena.isSolid(Math.floor(x), Math.floor(y)) && Math.min(x, y, this.arena.w - x, this.arena.h - y) > 3) {
+        f.x = x; f.y = y;
+        f.facing = Math.atan2(anchor.y - y, anchor.x - x);
+        return true;
+      }
+    }
+    return false;
+  }
 
   isWatched(f) { return !!f && f === this.camTarget; }
 
@@ -242,7 +259,9 @@ class World {
     if (this.killfeed.length > 6) this.killfeed.shift();
     if (f === this.player) this.notice(killer ? 'DEFEATED BY ' + killer.name.toUpperCase() : 'DEFEATED', '#ff6a6a');
 
-    if (this.cfg.winType === 'stock' && !this.demo) {
+    if (this.cfg.training) {
+      f.respawnT = f === this.player ? 2 : 1.5;
+    } else if (this.cfg.winType === 'stock' && !this.demo) {
       f.lives--;
       f.respawnT = f.lives > 0 ? 4 : Infinity;
       if (f.lives <= 0) f.eliminated = true;
@@ -343,7 +362,9 @@ class World {
       m += U.rand(0, 3);
       if (m > bs) { bs = m; best = sp; }
     }
-    f.x = best.x; f.y = best.y; f.z = 0; f.vx = f.vy = f.vz = 0; f.mvx = f.mvy = 0;
+    f.x = best.x; f.y = best.y;
+    if (this.cfg.training && this.player && f !== this.player && this.player.alive) this.placeNear(f, this.player, U.rand(3, 5));
+    f.z = 0; f.vx = f.vy = f.vz = 0; f.mvx = f.mvy = 0;
     f.dead = false; f.hp = f.maxHp; f.chakra = f.maxChakra; f.guard = 100;
     f.st = { burn: 0, burnDps: 0, burnSrc: null, burnTick: 0, wet: 0, para: 0, paraResist: 0, slow: 0, slowAmt: 0, root: 0, stealth: 0, genjutsu: 0 };
     f.buffs = []; f.computeMods();
@@ -363,6 +384,13 @@ class World {
     this.startT += dt;
 
     this.slowFields = this.fighters.filter((f) => f.alive && f.mod && f.mod.projSlow > 0);
+    if (this.cfg.training && this.player && this.player.alive) {
+      // the dojo keeps your meters topped up so you can practise everything
+      const p = this.player;
+      if (!p.awakened) p.awak = Math.min(100, p.awak + 9 * sdt);
+      p.ult = Math.min(100, p.ult + 9 * sdt);
+      p.chakra = Math.min(p.maxChakra, p.chakra + 6 * sdt);
+    }
     for (const f of this.fighters) f.update(sdt);
 
     // soft body separation

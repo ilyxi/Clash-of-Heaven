@@ -15,8 +15,25 @@ const Render = (() => {
     ctx = canvas.getContext('2d');
     resize();
     window.addEventListener('resize', resize);
-    puddle = makeDiamond('#5aa0e0', 0.9);
+    puddle = makeBlob('#5aa0e0', 23, 11);
     fireTile = makeDiamond('#ff7a1a', 0.8);
+  }
+
+  // Soft dithered ellipse; overlapping blobs merge into organic puddles.
+  function makeBlob(color, rx, ry) {
+    const c = U.makeCanvas(rx * 2 + 2, ry * 2 + 2);
+    const x = c.getContext('2d');
+    x.fillStyle = color;
+    for (let py = 0; py < c.height; py++) for (let px = 0; px < c.width; px++) {
+      const dx = (px + 0.5 - c.width / 2) / rx, dy = (py + 0.5 - c.height / 2) / ry;
+      const e = Math.sqrt(dx * dx + dy * dy);
+      if (e > 1) continue;
+      if (e > 0.6 && U.hash2(px, py, 5) > 1 - (e - 0.6) / 0.4 * 0.9) continue;
+      x.fillRect(px, py, 1, 1);
+    }
+    x.fillStyle = '#bfe0ff';
+    for (let k = 0; k < 5; k++) x.fillRect(Math.round(rx * 0.5 + U.hash2(k, 1, 9) * rx), Math.round(ry * 0.5 + U.hash2(k, 2, 9) * ry), 2, 1);
+    return c;
   }
 
   function makeDiamond(color, density) {
@@ -255,8 +272,8 @@ const Render = (() => {
         const h = U.hash2(i, j, tk);
         if (h > 0.55) { ctx.fillStyle = h > 0.85 ? '#ffffff' : '#bfe0ff'; ctx.fillRect(Math.round(tsx - 8 + h * 16), Math.round(tsy + 4 + U.hash2(j, i, tk) * 8), 2, 1); }
       } else if (A.wet[k] > 0) {
-        ctx.globalAlpha = Math.min(0.55, A.wet[k] * 0.2);
-        ctx.drawImage(puddle, Math.round(tsx - 16), Math.round(tsy));
+        ctx.globalAlpha = Math.min(0.42, A.wet[k] * 0.15);
+        ctx.drawImage(puddle, Math.round(tsx - puddle.width / 2 + (U.hash2(i, j, 1) - 0.5) * 6), Math.round(tsy + 8 - puddle.height / 2 + (U.hash2(j, i, 2) - 0.5) * 4));
         ctx.globalAlpha = 1;
       }
       if (A.fire[k] > 0) {
