@@ -78,7 +78,7 @@ const Combat = {
     if (src) dmg *= src.dmgMult(h.element, h);
     dmg *= elementMult(h.element, t.affinity);
     if (t.st.wet > 0) {
-      if (h.element === 'lightning') dmg *= 1.45;
+      if (h.element === 'lightning') dmg *= 1.35;
       if (h.element === 'fire') dmg *= 0.72;
     }
     if (t.st.burn > 0 && h.element === 'wind') dmg *= 1.2;

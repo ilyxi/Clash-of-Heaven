@@ -30,8 +30,8 @@ const AWAKENINGS = {
   },
   spirit: {
     id: 'spirit', name: 'Spirit Armor', dur: 14, colors: ['#e0c0ff', '#a060ff', '#5020a0'],
-    desc: 'A towering spectral warrior shields you: half damage, super armor and giant sweeping strikes.',
-    mods: { def: 0.5, armor: true, reach: 1.9, arcMult: 1.5, meleeDmg: 1.35, speed: 0.88, knockTaken: 0.2 },
+    desc: 'A towering spectral warrior shields you: much less damage taken, super armor and giant sweeping strikes.',
+    mods: { def: 0.62, armor: true, reach: 1.7, arcMult: 1.4, meleeDmg: 1.22, speed: 0.88, knockTaken: 0.25 },
     tick(f, dt) { if (Math.random() < dt * 8) FX.aura(f.x, f.y, ['#e0c0ff', '#a060ff', '#5020a0'], 1, 40, 0.5); },
   },
   curse: {

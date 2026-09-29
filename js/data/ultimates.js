@@ -95,21 +95,21 @@ defUlt({
 defUlt({
   id: 'kirin', name: 'Thunder Kirin', element: 'lightning', windup: 0.9, pose: 'raise', colors: ['#ffffff', '#8fc8ff', '#3548c9'],
   desc: 'Summon a storm, then drop a dragon of pure lightning onto the target area.',
-  ai: { min: 2, max: 10, kind: 'aoe', r: 3.6 },
+  ai: { min: 2, max: 10, kind: 'aoe', r: 3.2 },
   use(f, L) {
     const p = f.aimPoint(10, 0);
-    const R = 3.6;
+    const R = 3.2;
     SFX.playAt('thunder', p.x, p.y, 0.5);
     Combat.aoe({
-      src: f, x: p.x, y: p.y, r: R, delay: 1.25, dmg: 320 * UD(L), element: 'lightning', fx: false,
-      hit: { status: { para: 1.2 }, launch: 200, knock: 4, stun: 0.9, ability: 'kirin', unblockable: true, crater: false, blockDmg: 200 },
+      src: f, x: p.x, y: p.y, r: R, delay: 1.25, dmg: 260 * UD(L), element: 'lightning', fx: false,
+      hit: { status: { para: 0.9 }, launch: 200, knock: 4, stun: 0.9, ability: 'kirin', unblockable: true, crater: false, blockDmg: 200 },
       onFire(h) {
         SFX.playAt('thunder', h.x, h.y, 1);
         W.flash('#ffffff', 0.3);
         W.shakeAt(h.x, h.y, 14);
         W.arena.addStain(h.x, h.y, R * 0.8, 'scorch');
         W.arena.addStain(h.x, h.y, 1.4, 'crater');
-        electrify(f, h.x, h.y, 8, 60 * UD(L), 'kirin');
+        electrify(f, h.x, h.y, 5, 40 * UD(L), 'kirin');
         FX.electric(h.x, h.y, 4, 40);
         FX.ring(h.x, h.y, 0.5, '#e0f0ff', 0.5, 10, 2);
         FX.custom({
@@ -199,7 +199,7 @@ defUlt({
     const n = 7 + Math.min(3, L - 1);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU;
-      W.spawnClone(f, f.x + Math.cos(a) * 1.4, f.y + Math.sin(a) * 1.4, 11, { hp: 2, aggressive: true });
+      W.spawnClone(f, f.x + Math.cos(a) * 1.4, f.y + Math.sin(a) * 1.4, 11, { hp: 3, aggressive: true });
     }
     f.addBuff({ id: 'thousand', t: 6, mods: { speed: 1.2, dmg: 1.15 } });
     FX.poof(f.x, f.y, 40);

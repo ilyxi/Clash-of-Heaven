@@ -688,7 +688,7 @@ defJutsu({
     SFX.playAt('lightning', f.x, f.y);
     f.startJdash({
       dx: Math.cos(aim.ang), dy: Math.sin(aim.ang), speed: 17, dur: 0.33, radius: 0.6, pose: 'palm', stopOnHit: L < 5, blockDmg: 60, iframes: 0.08,
-      hit: { dmg: 105 * D(L), element: 'lightning', knock: 7, launch: 110, stun: 0.7, status: { para: 0.5 }, ability: 'lance', guardDmg: 90 },
+      hit: { dmg: 90 * D(L), element: 'lightning', knock: 7, launch: 110, stun: 0.7, status: { para: 0.35 }, ability: 'lance', guardDmg: 80 },
       trail(f) { FX.electric(f.x + Math.cos(f.facing) * 0.4, f.y + Math.sin(f.facing) * 0.4, 14, 3); FX.add({ x: f.x, y: f.y, z: 2, life: 0.3, color: '#8fc8ff', size: 2, layer: 0 }); },
       onHit(f, e, res) { if (res === 'hit') { FX.glow(e.x, e.y, 16, 10, '#e0f0ff', 0.15); W.shakeAt(e.x, e.y, 6); SFX.playAt('thunder', e.x, e.y, 0.6); } },
     });
@@ -707,17 +707,17 @@ defJutsu({
     let cur = cand[0];
     const segs = [];
     const hit = new Set();
-    let dmg = 45 * D(L);
+    let dmg = 40 * D(L);
     if (!cur) {
       const p = f.aimPoint(6, 1);
       segs.push([from, { x: p.x, y: p.y, z: 0 }]);
-      Combat.explosion(f, p.x, p.y, 0.8, 25 * D(L), 'lightning', { status: { para: 0.3 }, ability: 'chain', fx: false });
+      Combat.explosion(f, p.x, p.y, 0.8, 25 * D(L), 'lightning', { status: { para: 0.2 }, ability: 'chain', fx: false });
       electrify(f, p.x, p.y, 3, 20 * D(L), 'chain');
     }
     for (let n = 0; cur && n <= jumps; n++) {
       hit.add(cur);
       segs.push([from, { x: cur.x, y: cur.y, z: cur.z + 14 }]);
-      Combat.hit(cur, { src: f, dmg, element: 'lightning', kind: 'proj', knock: 1.5, stun: 0.4, status: { para: 0.4 }, ability: 'chain', sx: from.x, sy: from.y });
+      Combat.hit(cur, { src: f, dmg, element: 'lightning', kind: 'proj', knock: 1.5, stun: 0.4, status: { para: 0.28 }, ability: 'chain', sx: from.x, sy: from.y });
       from = { x: cur.x, y: cur.y, z: cur.z + 14 };
       dmg *= 0.82;
       const next = W.fighters.filter((e) => e.alive && Combat.enemies(f, e) && !hit.has(e) && U.dist(cur.x, cur.y, e.x, e.y) < 3.8)
@@ -738,7 +738,7 @@ function electrify(f, x, y, r, dmg, ability) {
     if (!e.alive || !Combat.enemies(f, e) || e.z > 3) continue;
     if (U.dist(x, y, e.x, e.y) > r) continue;
     if (!A.isWetW(e.x, e.y)) continue;
-    Combat.hit(e, { src: f, dmg, element: 'lightning', kind: 'aoe', knock: 0.5, stun: 0.4, status: { para: 0.6 }, ability, sx: x, sy: y, noParry: true, unblockable: true });
+    Combat.hit(e, { src: f, dmg, element: 'lightning', kind: 'aoe', knock: 0.5, stun: 0.4, status: { para: 0.4 }, ability, sx: x, sy: y, noParry: true, unblockable: true });
     any = true;
   }
   if (A.isWetW(x, y) || any) {
@@ -757,7 +757,7 @@ defJutsu({
   use(f, L, aim) {
     const n = L >= 5 ? 3 : 2;
     for (let i = 0; i < n; i++) {
-      shoot(f, aim.ang + (i - (n - 1) / 2) * 0.5, 10, { kind: 'hound', element: 'lightning', size: 4, radius: 0.4, life: 1.7, z: 8, dmg: 36 * D(L), knock: 2.5, stun: 0.45, homing: 3.6, status: { para: 0.45 }, ability: 'hound', clash: 1.2, blockDmg: 20, trail: TRAIL.lightning });
+      shoot(f, aim.ang + (i - (n - 1) / 2) * 0.5, 10, { kind: 'hound', element: 'lightning', size: 4, radius: 0.4, life: 1.7, z: 8, dmg: 34 * D(L), knock: 2.5, stun: 0.45, homing: 3.2, status: { para: 0.3 }, ability: 'hound', clash: 1.2, blockDmg: 20, trail: TRAIL.lightning });
     }
     SFX.playAt('lightning', f.x, f.y, 0.8);
   },
@@ -770,7 +770,7 @@ defJutsu({
   use(f, L) {
     const R = 2.3 * SZ(f, L);
     const pulse = () => {
-      Combat.explosion(f, f.x, f.y, R, 45 * D(L), 'lightning', { ability: 'discharge', status: { para: 0.8 }, knock: 4, stun: 0.5, blockDmg: 30, crater: false, sfx: 'thunder' });
+      Combat.explosion(f, f.x, f.y, R, 40 * D(L), 'lightning', { ability: 'discharge', status: { para: 0.5 }, knock: 4, stun: 0.5, blockDmg: 30, crater: false, sfx: 'thunder' });
       electrify(f, f.x, f.y, R + 3, 25 * D(L), 'discharge');
       FX.custom({ life: 0.2, layer: 1, draw(ctx, cam) { const [sx, sy] = DF.sp(f.x, f.y, 14, cam); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + Math.random(); DF.bolt(ctx, sx, sy, sx + Math.cos(a) * R * ISO_RX, sy + Math.sin(a) * R * ISO_RY, '#5f7aff', '#ffffff', 4, 5, 1); } } });
     };
@@ -781,15 +781,15 @@ defJutsu({
 
 defJutsu({
   id: 'larmor', name: 'Lightning Armor', element: 'lightning', cost: 25, cd: 16, cast: 0.2, icon: 'armor', pose: 'charge',
-  desc: 'Coat yourself in lightning: move and strike faster, and your blows paralyze.',
+  desc: 'Coat yourself in lightning: move, strike and cast faster, and dash more often.',
   mastery: 'Lv5: Lasts longer; dashing leaves shocking trails.', ai: { min: 0, max: 4, kind: 'buff' },
   use(f, L) {
     f.addBuff({
-      id: 'larmor', t: L >= 5 ? 8 : 6, mods: { speed: 1.3, atkSpeed: 1.3, castSpeed: 0.8, meleeElement: 'lightning', meleeStatus: { para: 0.15 }, dashCD: 0.7 }, fx: 'lightning',
+      id: 'larmor', t: L >= 5 ? 8 : 6, mods: { speed: 1.25, atkSpeed: 1.25, castSpeed: 0.85, meleeElement: 'lightning', dashCD: 0.7 }, fx: 'lightning',
       tick(f, dt) {
         if (Math.random() < dt * 20) FX.electric(f.x, f.y, f.z + U.rand(4, 26), 1);
         if (L >= 5 && f.state === 'dash' && Math.random() < dt * 30) {
-          Combat.zone({ src: f, x: f.x, y: f.y, r: 0.6, dur: 1.2, tickEvery: 0.3, onTick(e) { Combat.hit(e, { src: f, dmg: 10, element: 'lightning', kind: 'aoe', stun: 0.2, status: { para: 0.2 }, ability: 'larmor', sfx: false }); }, onUpdate(dt, z) { if (Math.random() < dt * 10) FX.electric(z.x, z.y, 2, 1); } });
+          Combat.zone({ src: f, x: f.x, y: f.y, r: 0.6, dur: 1.2, tickEvery: 0.3, onTick(e) { Combat.hit(e, { src: f, dmg: 10, element: 'lightning', kind: 'aoe', stun: 0.2, status: { para: 0.12 }, ability: 'larmor', sfx: false }); }, onUpdate(dt, z) { if (Math.random() < dt * 10) FX.electric(z.x, z.y, 2, 1); } });
         }
       },
     });
@@ -809,7 +809,7 @@ defJutsu({
     pts.forEach((q, i) => {
       Combat.aoe({
         src: f, x: q.x, y: q.y, r: 1.2 * SZ(f, L), delay: 0.5 + i * 0.15, dmg: 70 * D(L), element: 'lightning', fx: false,
-        hit: { status: { para: 0.6 }, knock: 2, stun: 0.5, ability: 'thunderbolt', crater: false, blockDmg: 60 },
+        hit: { status: { para: 0.4 }, knock: 2, stun: 0.5, ability: 'thunderbolt', crater: false, blockDmg: 60 },
         onFire(h) {
           SFX.playAt('thunder', h.x, h.y, 0.9);
           W.shakeAt(h.x, h.y, 5);
@@ -960,13 +960,13 @@ defJutsu({
             c.acc += dt;
             e.vx = e.vy = 0;
             e.x = U.lerp(e.x, f.x + Math.cos(f.facing) * 0.75, 0.3); e.y = U.lerp(e.y, f.y + Math.sin(f.facing) * 0.75, 0.3);
-            if (c.acc >= 0.08) { c.acc = 0; Combat.hit(e, { src: f, dmg: 14 * D(L), element: 'shinobi', kind: 'melee', knock: 0, stun: 0.3, ability: 'spiral', hitstop: 0.02, sfx: 'hit', noParry: true, unblockable: true }); }
+            if (c.acc >= 0.08) { c.acc = 0; Combat.hit(e, { src: f, dmg: 16 * D(L), element: 'shinobi', kind: 'melee', knock: 0, stun: 0.3, ability: 'spiral', hitstop: 0.02, sfx: 'hit', noParry: true, unblockable: true }); }
             FX.add({ x: e.x, y: e.y, z: 14, life: 0.08, color: ['#ffffff', '#cfe8ff', '#5aa0ff'], size: big ? 10 : 7, kind: 'glow', add: true });
             FX.wind(e.x, e.y, 14, 2);
           },
           end(f) {
             if (!e.alive) return;
-            Combat.hit(e, { src: f, dmg: 48 * D(L), element: 'shinobi', kind: 'melee', knock: 12, launch: 170, stun: 0.8, ability: 'spiral', dirX: Math.cos(f.facing), dirY: Math.sin(f.facing), noParry: true, unblockable: true, hitstop: 0.1, sfx: 'hitHeavy' });
+            Combat.hit(e, { src: f, dmg: 56 * D(L), element: 'shinobi', kind: 'melee', knock: 12, launch: 170, stun: 0.8, ability: 'spiral', dirX: Math.cos(f.facing), dirY: Math.sin(f.facing), noParry: true, unblockable: true, hitstop: 0.1, sfx: 'hitHeavy' });
             if (big) Combat.explosion(f, e.x, e.y, 1.6, 40 * D(L), 'shinobi', { ability: 'spiral', knock: 6 });
             FX.ring(e.x, e.y, 0.4, '#8fc8ff', 0.3, 6, 2);
             W.shakeAt(e.x, e.y, 6);

@@ -134,7 +134,7 @@ class Fighter {
     let k = this.mod.dmg;
     if (element && element === this.affinity) k *= 1.15;
     if (h && h.kind === 'melee') k *= this.mod.meleeDmg;
-    if (this.isClone) k *= 0.5;
+    if (this.isClone) k *= 0.6;
     return k;
   }
   defMult() { return this.mod.def; }
@@ -283,7 +283,7 @@ class Fighter {
     }
     if (st.wet > 0) { st.wet -= dt; if (Math.random() < dt * 5) FX.add({ x: this.x + U.rand(-0.2, 0.2), y: this.y + U.rand(-0.2, 0.2), z: this.z + U.rand(6, 22), vz: -20, g: 300, life: 0.5, color: '#8fcfff', size: 1 }); }
     if (st.para > 0) { st.para -= dt; if (Math.random() < dt * 20) FX.electric(this.x, this.y, this.z + U.rand(4, 24), 2); }
-    st.paraResist = Math.max(0, st.paraResist - dt * 0.2);
+    st.paraResist = Math.max(0, st.paraResist - dt * 0.15);
     if (st.slow > 0) st.slow -= dt;
     if (st.root > 0) st.root -= dt;
     if (st.stealth > 0) st.stealth -= dt;
@@ -964,8 +964,9 @@ class Fighter {
       else { st.burn = Math.max(st.burn, s.burn.t || 3); st.burnDps = Math.max(st.burnDps, s.burn.dps || 12); st.burnSrc = src; }
     }
     if (s.para) {
-      const t = s.para * (st.wet > 0 ? 1.5 : 1) * (1 - st.paraResist) * armor;
-      if (t > 0.05) { st.para = Math.max(st.para, t); st.paraResist = Math.min(0.7, st.paraResist + 0.35); }
+      // strong diminishing returns so lightning can't chain-stun forever
+      const t = s.para * (st.wet > 0 ? 1.3 : 1) * (1 - st.paraResist) * armor;
+      if (t > 0.05) { st.para = Math.max(st.para, t); st.paraResist = Math.min(0.85, st.paraResist + 0.5); }
     }
     if (s.slow) { st.slow = Math.max(st.slow, s.slow.t); st.slowAmt = Math.max(st.slow > 0 ? st.slowAmt : 0, s.slow.amt); this.computeMods(); }
     if (s.root) st.root = Math.max(st.root, s.root * armor);
