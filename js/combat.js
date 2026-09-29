@@ -90,6 +90,19 @@ const Combat = {
     if (src && src.counterBonus > 0 && h.kind !== 'dot') { dmg *= 1.3; src.counterBonus = 0; }
     dmg = Math.max(1, Math.round(dmg));
 
+    // A ridden summon soaks the hit with its own shield.
+    if (t.mount && t.mount.shield > 0 && h.kind !== 'dot') {
+      t.mount.shield -= dmg;
+      t.flash = 0.06;
+      FX.hit(t.x, t.y, t.visZ() + 8, h.element || 'phys', Math.min(2, dmg / 30));
+      FX.add({ x: t.x, y: t.y, z: t.visZ() + 4, vz: 40, g: 80, life: 0.6, color: '#ffffff', size: 2, vx: U.rand(-1, 1), vy: U.rand(-1, 1) });
+      if (W.showNumbers) FX.text(t.x, t.y, t.visZ() + 30, String(dmg), '#c8d8e8');
+      if (src) { const owner = src.owner || src; owner.gainMeters(dmg * 0.5, 'deal'); t.lastAttackers.set(owner, W.time); }
+      SFX.playAt('block', t.x, t.y, 0.5);
+      if (t.mount.shield <= 0) { FX.text(t.x, t.y, t.visZ() + 40, 'SUMMON BROKEN', '#ffb070', { life: 0.8 }); t.dismount('broken'); t.enterHitstun(0.35); }
+      return 'hit';
+    }
+
     Combat.applyDamage(t, dmg, src, h, false, crit);
     // controller rumble for the local player
     const P = W.player;
@@ -141,6 +154,10 @@ const Combat = {
       if (src && h.kind === 'melee') src.freeze = Math.max(src.freeze, hs * 0.85);
       t.flash = 0.1;
       FX.hit(t.x, t.y, t.z + 14, h.element || 'phys', Math.min(3, dmg / 30));
+      if (h.kind === 'melee' || dmg >= 35) {
+        const el = h.element && ELEMENTS[h.element];
+        FX.impact(t.x - kx * 0.15, t.y - ky * 0.15, t.z + 15, Math.min(2.6, 0.5 + dmg / 28), crit ? '#ffe14a' : el ? el.light : null);
+      }
       if (h.sfx !== false) SFX.playAt(h.sfx || (dmg > 45 ? 'hitHeavy' : 'hit'), t.x, t.y, Math.min(1, 0.5 + dmg / 100));
       if (W.camTarget && (t === W.camTarget || src === W.camTarget)) W.shake(Math.min(7, 1 + dmg / 22));
     }

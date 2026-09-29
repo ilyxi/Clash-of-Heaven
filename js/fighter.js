@@ -141,16 +141,31 @@ class Fighter {
     if (this.st.wet > 0) m.speed *= 0.92;
     this.mod = m;
   }
+  // Standing in or beside water (river, lake, or a soaked tile)?
+  waterNearby() {
+    const A = W.arena;
+    if (!this._wnT || this.time - this._wnT > 0.25) {
+      this._wnT = this.time;
+      this._wn = false;
+      for (let dj = -1; dj <= 1 && !this._wn; dj++) for (let di = -1; di <= 1; di++) {
+        if (A.isWetW(this.x + di * 1.1, this.y + dj * 1.1)) { this._wn = true; break; }
+      }
+    }
+    return this._wn;
+  }
+  // Water jutsu cast near water swell in size (read by the jutsu size scale).
+  get envBoost() { return this.waterBoostT > 0 && this.lastCastWater ? 1.35 : 1; }
   dmgMult(element, h) {
     let k = this.mod.dmg;
     if (element && element === this.affinity) k *= 1.15;
+    if (element === 'water' && this.waterBoostT > 0) k *= 1.3;
     if (h && h.kind === 'melee') k *= this.mod.meleeDmg;
     if (this.isClone) k *= 0.6;
     return k;
   }
   defMult() { return this.mod.def; }
   critChance() { return this.mod.crit; }
-  hasArmor() { return this.mod.armor || this.state === 'awaken'; }
+  hasArmor() { return this.mod.armor || this.state === 'awaken' || !!this.mount; }
   knockTaken() { return this.mod.knockTaken; }
   parryWindow() { return this.blockGap < 0.35 ? 0 : this.mod.parryWindow; }
   moveSpeed() { return BASE_SPEED * this.mod.speed; }
@@ -267,9 +282,13 @@ class Fighter {
     this.comboShowT = Math.max(0, this.comboShowT - dt);
     for (const s of this.jutsu) if (s && s.cd > 0) s.cd = Math.max(0, s.cd - dt);
     if (this.dead) return;
+    if (this.mount && this.state !== 'mount') this.dismount('knocked');
     // resources
     const m = this.mod;
-    this.chakra = Math.min(this.maxChakra, this.chakra + 3.2 * m.chakraRegen * dt);
+    this.waterBoostT = Math.max(0, (this.waterBoostT || 0) - dt);
+    // water users draw chakra from nearby water
+    const waterRegen = this.affinity === 'water' && this.z < 20 && this.waterNearby() ? 1.6 : 1;
+    this.chakra = Math.min(this.maxChakra, this.chakra + 3.2 * m.chakraRegen * waterRegen * dt);
     if (this.state !== 'block') {
       this.guardRegenDelay -= dt;
       if (this.guardRegenDelay <= 0) this.guard = Math.min(100, this.guard + 30 * dt);
@@ -350,8 +369,96 @@ class Fighter {
       case 'awaken': this.stAwaken(dt, inp); break;
       case 'ult': this.stUlt(dt, inp); break;
       case 'victory': this.mvx = this.mvy = 0; break;
+      case 'mount': this.stMount(dt, inp); break;
       default: this.setState('idle');
     }
+  }
+
+  // ---- summons: riding the Storm Hawk ---------------------------------------------
+  // The rider hovers over everything; attack drops bombs on the aim point,
+  // heavy dive-bombs and dismounts. The hawk's shield soaks incoming damage.
+  mountUp(o) {
+    this.cancelAction();
+    this.mount = Object.assign({ type: 'hawk', t: 10, shield: 150, maxShield: 150, lift: 0, fireCD: 0.3, flap: 0, dmg: 26, bombR: 1.3 }, o);
+    this.z = 0; this.vz = 0; this.vx = this.vy = 0;
+    this.jumps = 0;
+    this.setState('mount');
+    FX.poof(this.x, this.y, 18);
+    FX.ring(this.x, this.y, 0.4, '#9af0c8', 0.4, 8, 2);
+    SFX.playAt('poof', this.x, this.y, 0.9);
+    SFX.playAt('wind', this.x, this.y, 0.8);
+  }
+
+  visZ() { return this.mount ? this.z + this.mount.lift + Math.sin(this.time * 4) * 1.5 : this.z; }
+
+  stMount(dt, inp) {
+    const m = this.mount;
+    if (!m) { this.setState('idle'); return; }
+    m.t -= dt; m.fireCD -= dt; m.flap += dt * (Math.hypot(this.mvx, this.mvy) > 1 ? 9 : 6);
+    m.lift = Math.min(34, m.lift + dt * 110);
+    this.walk(inp, 1.55, 18);
+    const moving = Math.hypot(inp.mx, inp.my) > 0.1;
+    if (inp.ax !== null && inp.ax !== undefined) this.faceAim(this.isPlayer ? 0 : 10 * dt);
+    else if (moving) this.facing = Math.atan2(inp.my, inp.mx);
+    // wind wash under the wings
+    if (Math.random() < dt * 10) FX.add({ x: this.x + U.rand(-0.8, 0.8), y: this.y + U.rand(-0.8, 0.8), z: 1, vx: U.rand(-1.5, 1.5), vy: U.rand(-1.5, 1.5), drag: 2, life: 0.5, color: ['#e8fff4', '#bfe8d8'], size: 1, layer: 0 });
+    if (m.lift > 20 && (inp.light || inp.lightHeld) && m.fireCD <= 0) this.hawkBomb();
+    if (this.tryUlt(inp)) return;
+    if (inp.heavyPressed || this.takeBuf('heavy') || inp.jump) { this.dismount(inp.jump ? 'hop' : 'dive'); return; }
+    if (m.t <= 0) this.dismount('expire');
+  }
+
+  hawkBomb() {
+    const m = this.mount;
+    m.fireCD = 0.3;
+    const a = this.aimPoint(6.5, 0);
+    const tx = a.x + U.rand(-0.2, 0.2), ty = a.y + U.rand(-0.2, 0.2);
+    const ox = this.x, oy = this.y, oz = this.visZ() + 6, L = this.lvlOf('summonhawk'), me = this;
+    SFX.playAt('kunai', this.x, this.y, 0.5);
+    Combat.aoe({
+      src: this, x: tx, y: ty, r: m.bombR, delay: 0.32, dmg: m.dmg * D(L), element: 'wind', noTelegraph: false,
+      hit: { ability: 'summonhawk', knock: 3.5, stun: 0.4, launch: 90, blockDmg: 35 },
+      draw(ctx, cam) {
+        if (this.fired) return;
+        const k = Math.min(1, this.t / this.delay);
+        const x = U.lerp(ox, tx, k), y = U.lerp(oy, ty, k), z = oz * (1 - k * k);
+        const [sx, sy] = DF.sp(x, y, z, cam);
+        ctx.fillStyle = '#120a18'; PX.circle(ctx, sx, sy, 4);
+        ctx.fillStyle = '#5fd0a0'; PX.circle(ctx, sx, sy, 3);
+        ctx.fillStyle = '#e8fff4'; ctx.fillRect(sx - 1, sy - 2, 2, 2);
+        // feather fins
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - 1, sy - 6, 2, 3);
+      },
+      onFire() { FX.wind(tx, ty, 6, 10); FX.leaves(tx, ty, 8, 4); void me; },
+    });
+  }
+
+  dismount(how) {
+    const m = this.mount;
+    if (!m) return;
+    this.mount = null;
+    const hz = Math.max(0, m.lift);
+    FX.poof(this.x, this.y, 14);
+    FX.leaves(this.x, this.y, hz + 10, 8);
+    SFX.playAt('poof', this.x, this.y, 0.7);
+    if (this.dead) return;
+    if (how === 'dive') {
+      // the hawk dive-bombs the aim point while you drop off
+      const a = this.aimPoint(5, 0), L = this.lvlOf('summonhawk'), src = this;
+      Combat.aoe({
+        src, x: a.x, y: a.y, r: 2.2, delay: 0.3, dmg: 70 * D(L), element: 'wind',
+        hit: { ability: 'summonhawk', knock: 7, launch: 200, stun: 0.6, blockDmg: 80 },
+        draw(ctx, cam) {
+          if (this.fired) return;
+          const k = Math.min(1, this.t / this.delay);
+          const [sx, sy] = DF.sp(U.lerp(src.x, a.x, k), U.lerp(src.y, a.y, k), 40 * (1 - k), cam);
+          drawHawk(ctx, sx, sy, Math.atan2(a.y - src.y, a.x - src.x), 0.5, true);
+        },
+      });
+    }
+    this.z = hz; this.vz = how === 'hop' ? 160 : 40; this.jumps = 1;
+    this.iframes = Math.max(this.iframes, 0.2);
+    if (this.state === 'mount') this.setState('idle');
   }
 
   faceAim(rate) {
@@ -419,6 +526,14 @@ class Fighter {
     const sp = Math.hypot(this.mvx, this.mvy);
     this.animT += dt * (0.4 + sp / 4.3) * 1.25;
     const st = sp > 0.4 ? 'move' : 'idle';
+    // footfalls: a puff of dust (or a splash) each time a foot plants
+    const rf = Math.floor(this.animT * 7) % 8;
+    if (st === 'move' && !air && rf !== this.runFrame && (rf === 0 || rf === 4)) {
+      const bx = this.x - Math.cos(this.facing) * 0.15, by = this.y - Math.sin(this.facing) * 0.15;
+      if (W.arena.isWaterW(this.x, this.y)) FX.splash(bx, by, 3, 0.5);
+      else if (sp > 3) FX.dust(bx, by, 2);
+    }
+    this.runFrame = rf;
     if (st !== this.state) { this.state = st; }
   }
 
@@ -447,6 +562,7 @@ class Fighter {
     this.atkQueued = false;
     this.atkConnected = false;
     this.atkBlocks = false;
+    this.smeared = false;
     if (this.inp && this.inp.ax !== null) this.faceAim();
     this.lockTarget = this.softLock(this.atk.dashAttack ? 3 : 2.4);
     this.setState('attack');
@@ -466,6 +582,7 @@ class Fighter {
       if (a.air) this.vz = Math.max(this.vz, a.spike ? -80 : 40); // hang in the air while striking
       else if (Math.random() < 0.5) FX.dust(this.x, this.y, 1);
     } else { this.mvx *= 0.6; this.mvy *= 0.6; }
+    if (t >= a.wind && !this.smeared) { this.smeared = true; this.strikeSmear(a.pose, a.range); }
     if (t >= a.wind && t < a.wind + a.act + 0.02) this.meleeCheck(a);
     const endAct = a.wind + a.act;
     if (t >= endAct) {
@@ -498,6 +615,23 @@ class Fighter {
       this.comboResume = a.finisher || a.chase || a.air ? 99 : a.dashAttack ? 0 : (a.side || a.back) ? 1 : this.comboStep + 1;
       this.setState('idle');
     }
+  }
+
+  // Motion smear matching the strike's shape.
+  strikeSmear(pose, range = 1.2) {
+    const el = this.mod.meleeElement && ELEMENTS[this.mod.meleeElement];
+    const o = { reach: range * 0.95, color: el ? el.light : '#ffffff', edge: el ? el.color : '#a8c8ff' };
+    switch (pose) {
+      case 'jab': case 'cross': case 'airpunch': case 'palm': Object.assign(o, { kind: 'thrust', z: 18, reach: range * 0.8 }); break;
+      case 'lunge': Object.assign(o, { kind: 'thrust', z: 17, reach: range * 1.2, life: 0.16 }); break;
+      case 'kick': case 'airkick': Object.assign(o, { arc: 1.5, z: 20, rise: 10 }); break;
+      case 'sweep': Object.assign(o, { arc: 2.6, z: 3, reach: range * 1.05, life: 0.16 }); break;
+      case 'uppercut': Object.assign(o, { arc: 0.7, z: 14, rise: -26, reach: range * 0.7 }); break;
+      case 'slam': case 'dive': Object.assign(o, { arc: 1.2, z: 22, rise: 24, reach: range * 0.8 }); break;
+      case 'spin': Object.assign(o, { arc: TAU * 0.9, z: 16, life: 0.2, dir: this.flip ? -1 : 1 }); break;
+      default: Object.assign(o, { arc: 1.4 });
+    }
+    FX.smear(this, o);
   }
 
   // Air heavy: plunge down at an angle, spiking anyone in the way, then
@@ -607,6 +741,8 @@ class Fighter {
         this.softLock(this.heavyKind === 'forward' ? 4.5 : 2.4);
         this.heavyHit = new Set();
         SFX.playAt('swing', this.x, this.y, 0.9);
+        if (this.heavyKind === 'back') { this.strikeSmear('spin', 1.5); FX.smear(this, { arc: TAU * 0.9, z: 8, reach: 1.4, life: 0.35, dir: -1, color: '#e8f0ff' }); }
+        else this.strikeSmear(this.heavyKind === 'forward' ? 'lunge' : 'uppercut', 1.4);
       }
       return;
     }
@@ -816,6 +952,17 @@ class Fighter {
       const cam = W.camTarget;
       if (!this.isClone && (W.isWatched(this) || (cam && U.dist(cam.x, cam.y, this.x, this.y) < 8))) {
         FX.text(this.x, this.y, this.z + 58, s.def.name.toUpperCase() + '!', (ELEMENTS[s.def.element] || ELEMENTS.shinobi).light, { life: 0.75, vz: 12 });
+      }
+      this.lastCastWater = s.def.element === 'water';
+      if (this.lastCastWater && this.waterNearby()) {
+        this.waterBoostT = 2.2;
+        FX.text(this.x, this.y, this.z + 46, 'WATER BOOST', '#9ad4ff', { life: 0.8, vz: 20 });
+        FX.splash(this.x, this.y, 18, 1.4);
+        FX.ring(this.x, this.y, 0.4, '#9ad4ff', 0.4, 7, 2);
+        for (let k = 0; k < 10; k++) {
+          const a = U.rand(0, TAU);
+          FX.add({ x: this.x + Math.cos(a) * 1.2, y: this.y + Math.sin(a) * 1.2, z: 0, vx: -Math.cos(a) * 2.4, vy: -Math.sin(a) * 2.4, vz: U.rand(60, 120), g: 260, life: 0.5, color: ['#e8f6ff', '#9ad4ff', '#3fa0ff'], size: 2 });
+        }
       }
       s.def.use(this, this.lvlOf(s.id), this.aim());
       if (this.state === 'cast') this.setState('recover');
@@ -1132,6 +1279,7 @@ class Fighter {
     if (this.dead) return;
     this.cancelAction();
     this.dead = true;
+    if (this.mount) this.dismount('death');
     this.deadT = 0;
     this.setState('dead');
     this.awakened = null;
@@ -1161,6 +1309,15 @@ class Fighter {
   // ---- physics ----------------------------------------------------------------------------
   physics(dt) {
     const A = W.arena;
+    if (this.mount) {
+      // flying: glide over props and water, only the arena edge stops you
+      const k = Math.exp(-2.5 * dt);
+      this.vx *= k; this.vy *= k;
+      this.x = U.clamp(this.x + (this.vx + this.mvx) * dt, 2.6, A.w - 2.6);
+      this.y = U.clamp(this.y + (this.vy + this.mvy) * dt, 2.6, A.h - 2.6);
+      this.z = 0; this.vz = 0;
+      return;
+    }
     const air = this.z > 0 || this.vz > 0;
     const fr = air ? 1.2 : (this.state === 'hitstun' || this.dead) ? 5.5 : 9;
     const k = Math.exp(-fr * dt);
@@ -1245,7 +1402,7 @@ class Fighter {
   }
 
   envEffects(dt) {
-    if (this.z > 2) return;
+    if (this.z > 2 || this.mount) return;
     const A = W.arena;
     const i = Math.floor(this.x), j = Math.floor(this.y);
     const k = A.idx(i, j);
@@ -1276,20 +1433,25 @@ class Fighter {
       case 'idle': case 'move':
         if (this.z > 1) return [this.vz > 0 ? 'jump' : 'fall', 0];
         return this.state === 'idle' ? ['idle', Math.floor(t * 2.2) % 2] : ['run', Math.floor(this.animT * 7) % 8];
-      case 'attack': return [this.stateT * this.atkSpeed < this.atk.wind * 0.5 && !this.atk.chase ? (this.atk.air ? 'jump' : 'idle') : this.atk.pose, this.atk.back ? Math.floor(this.stateT * 14) % 2 : 0];
+      case 'attack': {
+        const a = this.atk, at = this.stateT * this.atkSpeed;
+        if (a.back) return ['spin', Math.floor(this.stateT * 14) % 2];
+        if (Sprites.frameCount(a.pose) < 3) return [a.pose, 0];
+        return [a.pose, at < a.wind ? 0 : at < a.wind + a.act + 0.05 ? 1 : 2];
+      }
       case 'heavy':
         if (!this.heavyReleased) return ['heavyWind', 0];
-        if (this.heavyKind === 'forward') return ['lunge', 0];
+        if (this.heavyKind === 'forward') return ['lunge', this.heavyT < 0.26 ? 1 : 2];
         if (this.heavyKind === 'back') return ['spin', Math.floor(this.heavyT * 12) % 2];
-        return ['uppercut', 0];
-      case 'dive': return ['dive', 0];
+        return ['uppercut', this.heavyT < 0.03 ? 0 : this.heavyT < 0.2 ? 1 : 2];
+      case 'dive': return ['dive', this.stateT < 0.08 ? 0 : 1];
       case 'dash': return ['dash', 0];
       case 'block': return ['block', 0];
       case 'cast': return ['seal', Math.floor(this.stateT * 12) % 2];
-      case 'channel': return [(this.channel && this.channel.pose) || 'release', 0];
-      case 'jdash': return [(this.jd && this.jd.pose) || 'dash', 0];
-      case 'recover': return [this.recoverPose || 'release', 0];
-      case 'throw': return ['throw', 0];
+      case 'channel': { const p = (this.channel && this.channel.pose) || 'release'; return [p, Sprites.frameCount(p) >= 3 ? 1 : 0]; }
+      case 'jdash': { const p = (this.jd && this.jd.pose) || 'dash'; return [p, Sprites.frameCount(p) >= 3 ? 1 : 0]; }
+      case 'recover': { const p = this.recoverPose || 'release'; return [p, Sprites.frameCount(p) >= 3 ? (this.stateT < 0.08 ? 1 : 2) : 0]; }
+      case 'throw': return ['throw', !this.thrown ? 0 : this.stateT - this.throwAt < 0.07 ? 1 : 2];
       case 'hitstun': return ['hurt', this.hurtFrame];
       case 'air': return ['air', 0];
       case 'down': case 'dead': return ['lying', 0];
@@ -1299,6 +1461,7 @@ class Fighter {
       case 'awaken': return ['raise', 0];
       case 'ult': return [(this.ultimate && this.ultimate.pose) || 'raise', 0];
       case 'victory': return ['victory', 0];
+      case 'mount': return ['ride', this.mount && this.mount.fireCD > 0.18 ? 1 : 0];
       default: return ['idle', 0];
     }
   }

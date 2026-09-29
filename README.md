@@ -37,10 +37,15 @@ After changing the source, rebuild the single file with `node tools/bundle.js`.
   - Water leaves puddles, and lightning arcs through them and through rivers.
   - Earth jutsu raise temporary walls.
   - Explosive barrels blow up.
-- **43 jutsu across six schools:** Fire, Water, Earth, Wind, Lightning and Shinobi arts. They include projectiles, beams, homing hounds, tornadoes, walls, swamps, leaps, clones, binds, reflect domes and more.
+- **46 jutsu across six schools:** Fire, Water, Earth, Wind, Lightning and Shinobi arts. They include projectiles, beams, homing hounds, tornadoes, walls, swamps, leaps, clones, binds, reflect domes and more.
+- **Summoning.**
+  - **Storm Hawk:** ride a giant hawk over props and water and drop bombs below. Heavy dive-bombs and jumps off; the hawk soaks hits until its shield breaks.
+  - **Great Toad:** crashes down on the aim point, then spits water shots at nearby enemies.
+  - **Giant Serpent:** tears out of the ground and plows forward, launching everyone in its path.
 - **Elemental system.** Fire beats Wind, Wind beats Lightning, Lightning beats Earth, Earth beats Water, and Water beats Fire. Advantage gives bonus damage and decides jutsu clashes. The elements also interact:
   - Soaked targets take extra lightning damage.
   - Water puts out fires.
+  - Water jutsu cast in or next to water get a **Water Boost**: 35% bigger and 30% stronger.
   - Wind fans flames and throws enemy fireballs back.
 - **6 awakenings:** Crimson Eye, Sage Mode, Beast Cloak, Eight Gates, Spirit Armor and Cursed Seal. Each is a timed transformation with unique buffs and visuals.
 - **8 ultimates**, each with an anime-style cut-in: Heavenly Meteor, Chakra Cannon, Thunder Kirin, Great Tsunami, Tempest Shuriken, Thousand Clones, Inferno Dragon and Crimson Moon.
@@ -82,6 +87,7 @@ Controllers also drive every menu: D-pad or left stick to move, Cross/A to selec
 - **Perfect dodge.** Dash through an attack at the last moment. You gain chakra and your next hit deals +30% damage.
 - **Substitution.** Press dash while you're being comboed. You swap with a log and reappear behind your attacker. The gauge holds two uses.
 - **Heavy attacks** break guards, and a fully charged heavy shatters any block.
+- **Fight near rivers as a water user.** The boost makes Water Dragon, Crashing Wave and friends much larger, and water-affinity shinobi regain chakra faster there.
 
 ## Code layout
 
@@ -93,6 +99,7 @@ Controllers also drive every menu: D-pad or left stick to move, Cross/A to selec
 | `js/arena.js` | Tile map, generators for each theme, destruction, fire and water, collision, A* pathfinding |
 | `js/combat.js`, `js/fighter.js` | Damage resolution, projectiles, hazards, and the fighter state machine |
 | `js/data/*.js` | Elements, looks, the jutsu catalog, awakenings, ultimates and preset shinobi |
+| `js/summons.js` | Summoning jutsu (hawk mount, toad, serpent) and their procedural art |
 | `js/ai.js` | Bot brains that drive fighters through the same input struct as the player |
 | `js/world.js` | Match rules, spawning, kills and assists, projectile clashes, camera |
 | `js/render.js`, `js/drawfx.js`, `js/fx.js`, `js/hud.js` | Depth-sorted iso rendering, effects, particles and the HUD |

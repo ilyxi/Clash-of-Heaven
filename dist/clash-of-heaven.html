@@ -1185,9 +1185,9 @@ const LOOKS = {
 // Left-facing variants are mirrored at draw time.
 // ---------------------------------------------------------------------------
 
-const SPR_W = 34, SPR_H = 38;
-const SPR_OX = 17, SPR_OY = 35; // feet anchor inside the sprite canvas
-const DX = 1, DY = 2;           // offset of the design grid inside the canvas
+const SPR_W = 40, SPR_H = 38;
+const SPR_OX = 20, SPR_OY = 35; // feet anchor inside the sprite canvas
+const DX = 4, DY = 2;           // offset of the design grid inside the canvas (room for extended limbs)
 
 const Sprites = (() => {
   // ---- poses ----------------------------------------------------------------
@@ -1203,14 +1203,39 @@ const Sprites = (() => {
       { by: 1, armL: { e: [0, 3], h: [-1, 5] }, armR: { e: [0, 3], h: [1, 5] }, legL: L_STAND, legR: R_STAND },
     ],
     run: makeRunCycle(8),
-    jab: [{ lean: 1, armR: { e: [3, 1], h: [7, 1] }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [3, 6] } }],
-    cross: [{ lean: 2, armL: { e: [4, 1], h: [9, 0], front: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [1, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } }],
-    kick: [{ lean: -1, armL: { e: [-2, 0], h: [-4, -2] }, armR: { e: [2, 1], h: [4, 3] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, -1], f: [9, -1] } }],
-    uppercut: [{ by: 1, lean: 2, armR: { e: [2, -2], h: [3, -7] }, armL: { e: [-1, 2], h: [-3, 3] }, legL: { k: [-2, 3], f: [-4, 6] }, legR: { k: [3, 2], f: [5, 6] } }],
-    sweep: [{ by: 3, lean: 1, armL: { e: [-2, 1], h: [-4, 4] }, armR: { e: [2, 0], h: [4, -2] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [4, 1], f: [9, 5] } }],
-    heavyWind: [{ by: 2, lean: -1, armR: { e: [-3, 1], h: [-6, 1], back: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } }],
+    // Strikes have 3 frames: 0 = anticipation, 1 = impact, 2 = follow-through.
+    jab: [
+      { by: 1, armR: { e: [1, 2], h: [3, 0], fist: true }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-3, 6] }, legR: { k: [1, 3], f: [2, 6] } },
+      { lean: 2, armR: { e: [4, 0], h: [9, 0], fist: true }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [4, 6] } },
+      { lean: 1, armR: { e: [3, 1], h: [6, 1], fist: true }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [3, 6] } },
+    ],
+    cross: [
+      { by: 1, lean: -1, armL: { e: [-1, 2], h: [1, 0], fist: true }, armR: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-1, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+      { lean: 3, armL: { e: [5, 0], h: [11, -1], front: true, fist: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [2, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } },
+      { lean: 2, armL: { e: [4, 1], h: [7, 1], front: true, fist: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [1, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } },
+    ],
+    kick: [
+      { lean: -1, armL: { e: [-2, 1], h: [-4, 0] }, armR: { e: [2, 1], h: [3, -1] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [3, 0], f: [2, 3] } },
+      { lean: -2, armL: { e: [-2, 0], h: [-5, -2] }, armR: { e: [2, 1], h: [4, 3] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [5, -1], f: [11, -2] } },
+      { lean: -1, armL: { e: [-2, 1], h: [-4, 1] }, armR: { e: [2, 1], h: [4, 2] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [3, 1], f: [5, 4] } },
+    ],
+    uppercut: [
+      { by: 3, lean: 1, armR: { e: [0, 3], h: [2, 5], fist: true }, armL: { e: [1, 1], h: [3, 0], front: true }, legL: { k: [-2, 2], f: [-4, 6] }, legR: { k: [3, 2], f: [4, 6] } },
+      { by: -1, lean: 2, armR: { e: [3, -3], h: [4, -9], fist: true }, armL: { e: [-1, 2], h: [-3, 3] }, legL: { k: [-1, 2], f: [-3, 5] }, legR: { k: [1, 3], f: [2, 6] } },
+      { lean: 1, armR: { e: [2, -3], h: [2, -7], fist: true }, armL: { e: [-1, 2], h: [-3, 3] }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+    ],
+    sweep: [
+      { by: 2, armL: { e: [-2, 2], h: [-4, 4] }, armR: { e: [1, 2], h: [2, 4] }, legL: { k: [-1, 2], f: [-2, 6] }, legR: { k: [1, 2], f: [-3, 5] } },
+      { by: 3, lean: 1, armL: { e: [-2, 1], h: [-5, 4] }, armR: { e: [2, 0], h: [4, -2] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [4, 1], f: [10, 5] } },
+      { by: 3, lean: 1, armL: { e: [-2, 1], h: [-4, 4] }, armR: { e: [2, 1], h: [4, 1] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [3, 2], f: [6, 6] } },
+    ],
+    heavyWind: [{ by: 2, lean: -1, armR: { e: [-3, 1], h: [-6, 1], back: true, fist: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } }],
     palm: [{ by: 1, lean: 3, armR: { e: [4, 0], h: [9, -1] }, armL: { e: [-1, 2], h: [-3, 2] }, legL: { k: [-2, 3], f: [-4, 6] }, legR: { k: [3, 2], f: [5, 6] } }],
-    throw: [{ lean: 1, armR: { e: [2, -2], h: [6, -2] }, armL: { e: [-1, 2], h: [-3, 4] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
+    throw: [
+      { lean: -1, armR: { e: [-2, -1], h: [-3, -4], back: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-1, 3], f: [-3, 6] }, legR: { k: [1, 3], f: [2, 6] } },
+      { lean: 2, armR: { e: [3, -2], h: [7, -2] }, armL: { e: [-1, 2], h: [-3, 4] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+      { lean: 2, armR: { e: [3, 1], h: [6, 3] }, armL: { e: [-1, 2], h: [-3, 4] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+    ],
     seal: [
       { armL: { e: [1, 3], h: [4, 3], front: true }, armR: { e: [-1, 3], h: [-4, 3], front: true }, legL: L_STAND, legR: R_STAND },
       { armL: { e: [1, 2], h: [4, 1], front: true }, armR: { e: [-1, 2], h: [-4, 1], front: true }, legL: L_STAND, legR: R_STAND },
@@ -1228,19 +1253,44 @@ const Sprites = (() => {
       { by: 2, armL: { e: [-1, 2], h: [-3, 5] }, armR: { e: [1, 2], h: [3, 5] }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } },
     ],
     raise: [{ armL: { e: [-1, -3], h: [1, -7] }, armR: { e: [1, -3], h: [-1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
-    slam: [{ by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true }, armR: { e: [2, 3], h: [5, 6] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } }],
+    slam: [
+      { lean: -1, armL: { e: [0, -3], h: [2, -8], front: true, fist: true }, armR: { e: [1, -3], h: [3, -8], fist: true }, legL: { k: [1, 2], f: [-1, 4] }, legR: { k: [2, 2], f: [2, 4] } },
+      { by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true, fist: true }, armR: { e: [2, 3], h: [5, 6], fist: true }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } },
+      { by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true }, armR: { e: [2, 3], h: [5, 6] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } },
+    ],
     victory: [{ armL: A_DOWN, armR: { e: [1, -3], h: [1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
     // airborne
     jump: [{ lean: 1, armL: { e: [-2, -2], h: [-3, -5] }, armR: { e: [2, -2], h: [3, -5] }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } }],
     fall: [{ armL: { e: [-3, 0], h: [-5, -1] }, armR: { e: [3, 0], h: [5, -1] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 2], f: [2, 5] } }],
-    airpunch: [{ lean: 2, armR: { e: [4, 0], h: [8, 0] }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [2, 1], f: [1, 3] } }],
-    airkick: [{ lean: -1, armL: { e: [-2, -1], h: [-4, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [4, 1], f: [9, 2] } }],
-    dive: [{ lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [6, 7] } }],
+    airpunch: [
+      { armR: { e: [-1, 1], h: [1, -1], fist: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } },
+      { lean: 3, armR: { e: [5, 0], h: [10, 0], fist: true }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-3, 4] }, legR: { k: [2, 1], f: [1, 3] } },
+      { lean: 2, armR: { e: [3, 1], h: [6, 1], fist: true }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [2, 1], f: [1, 3] } },
+    ],
+    airkick: [
+      { lean: 1, armL: { e: [-2, -1], h: [-4, -2] }, armR: { e: [1, -1], h: [3, -3] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [3, -1], f: [1, 2] } },
+      { lean: -2, armL: { e: [-2, -1], h: [-5, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [5, 1], f: [11, 1] } },
+      { lean: -1, armL: { e: [-2, -1], h: [-4, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [3, 1], f: [5, 4] } },
+    ],
+    dive: [
+      { lean: -1, armL: { e: [-1, -3], h: [0, -7] }, armR: { e: [1, -3], h: [1, -7] }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } },
+      { lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [7, 8] } },
+      { lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [6, 7] } },
+    ],
     // signatures
-    lunge: [{ by: 2, lean: 4, armR: { e: [5, 0], h: [10, 0] }, armL: { e: [-2, 1], h: [-5, 1], back: true }, legL: { k: [-3, 2], f: [-6, 5] }, legR: { k: [4, 2], f: [6, 6] } }],
+    lunge: [
+      { by: 2, lean: -1, armR: { e: [-2, 1], h: [-4, 1], back: true, fist: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-2, 3], f: [-4, 6] }, legR: { k: [3, 2], f: [5, 6] } },
+      { by: 2, lean: 4, armR: { e: [5, 0], h: [11, 0], fist: true }, armL: { e: [-2, 1], h: [-5, 1], back: true }, legL: { k: [-3, 2], f: [-7, 5] }, legR: { k: [4, 2], f: [6, 6] } },
+      { by: 1, lean: 3, armR: { e: [4, 1], h: [8, 1], fist: true }, armL: { e: [-2, 1], h: [-4, 2], back: true }, legL: { k: [-2, 3], f: [-5, 6] }, legR: { k: [3, 2], f: [5, 6] } },
+    ],
     spin: [
       { lean: -1, armL: { e: [-3, 0], h: [-7, 0] }, armR: { e: [3, 0], h: [7, 0] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, 0], f: [8, 1] } },
       { lean: 1, armL: { e: [-3, 0], h: [-7, -1] }, armR: { e: [3, 0], h: [7, -1] }, legL: { k: [-4, 0], f: [-8, 1] }, legR: { k: [0, 3], f: [1, 6] } },
+    ],
+    // kneeling on a summon's back; frame 1 = throwing down
+    ride: [
+      { by: 3, lean: 1, armL: { e: [1, 2], h: [3, 3], front: true }, armR: { e: [2, 2], h: [4, 3] }, legL: { k: [3, 1], f: [-2, 4] }, legR: { k: [4, 2], f: [0, 5] } },
+      { by: 3, lean: 2, armL: { e: [1, 2], h: [3, 3], front: true }, armR: { e: [3, 2], h: [7, 5] }, legL: { k: [3, 1], f: [-2, 4] }, legR: { k: [4, 2], f: [0, 5] } },
     ],
     backkick: [{ lean: 2, armL: { e: [2, 1], h: [4, 3], front: true }, armR: { e: [2, 0], h: [5, -1] }, legL: { k: [-4, 0], f: [-9, -1] }, legR: { k: [0, 3], f: [1, 6] } }],
   };
@@ -1252,19 +1302,26 @@ const Sprites = (() => {
     for (let i = 0; i < n; i++) {
       const t = (i / n) * TAU;
       const leg = (ph) => {
-        const fx = Math.cos(ph) * 4.5;
-        const lift = Math.max(0, -Math.sin(ph)) * 3.2;           // foot off the ground on the back-swing
+        const fx = Math.cos(ph) * 5.2;
+        const lift = Math.max(0, -Math.sin(ph)) * 3.8;           // foot off the ground on the back-swing
         const fy = Math.round(6 - lift);
-        const kx = Math.round(fx * 0.45 + 1 + (lift > 1 ? 1.5 : 0));
-        const ky = Math.round(3 - lift * 0.6);
+        // the knee drives forward and up while the foot recovers
+        const kx = Math.round(fx * 0.45 + 1 + (lift > 1 ? 2 : 0));
+        const ky = Math.round(3 - lift * 0.7);
         return { k: [kx, ky], f: [Math.round(fx), fy] };
       };
       const arm = (ph, far) => {
         const s = -Math.cos(ph);                                 // opposite to the same-side leg
-        return { e: [Math.round(s * 1.5), 2], h: [Math.round(s * 3), Math.round(4 - Math.abs(s) * 1.5)], back: far && s < 0 };
+        const fw = Math.max(0, s), bk = Math.max(0, -s);
+        // bent-elbow pump: the hand comes up to the chest going forward, drops behind the hip going back
+        return {
+          e: [Math.round(s * 1.7), Math.round(2 - fw * 0.4)],
+          h: [Math.round(fw * 3.4 - bk * 3.2), Math.round(4 - fw * 3.4 + bk * 0.3)],
+          back: far && s < 0, fist: true,
+        };
       };
-      const by = Math.round(-Math.sin(t * 2) * 0.9);
-      frames.push({ lean: 1, by, legR: leg(t), legL: leg(t + Math.PI), armR: arm(t + Math.PI, true), armL: arm(t, false) });
+      const by = Math.round(-Math.sin(t * 2) * 1.1);
+      frames.push({ lean: 2, by, legR: leg(t), legL: leg(t + Math.PI), armR: arm(t + Math.PI, true), armL: arm(t, false) });
     }
     return frames;
   }
@@ -1440,7 +1497,15 @@ const Sprites = (() => {
     const sleeve = dim ? P.outD : P.out;
     brushLine(ctx, sx, sy, ex, ey, 2, 2, sleeve);
     brushLine(ctx, ex, ey, hx, hy, 2, 2, sleeve);
-    rect(ctx, hx, hy, 2, 2, dim ? P.skinD : P.skin);
+    if (arm.fist && Math.abs(arm.h[0]) >= 6) {
+      // extended fist: wrapped wrist + chunky knuckles
+      const dir = arm.h[0] > 0 ? 1 : -1;
+      rect(ctx, hx - dir, hy, 1, 2, P.wrap);
+      rect(ctx, dir > 0 ? hx : hx - 1, hy - 1, 3, 3, dim ? P.skinD : P.skin);
+      rect(ctx, dir > 0 ? hx + 2 : hx - 1, hy - 1, 1, 3, P.skinD);
+    } else {
+      rect(ctx, hx, hy, 2, 2, dim ? P.skinD : P.skin);
+    }
   }
 
   function drawLeg(ctx, P, hx, hy, leg, lead) {
@@ -1716,7 +1781,7 @@ const Sprites = (() => {
     let c = portraitCache.get(key);
     if (c) return c;
     const src = get(look, 'idle', 0, 'F');
-    const sx = 5, sy = 1, sw = 24, sh = 22;
+    const sx = 2 + DX, sy = 1, sw = 24, sh = 22;
     // hi-res canvas; lw/lh give the logical size
     c = U.makeCanvas(sw * scale * HIRES, sh * scale * HIRES);
     c.getContext('2d').drawImage(src, sx * HIRES, sy * HIRES, sw * HIRES, sh * HIRES, 0, 0, c.width, c.height);
@@ -2299,16 +2364,19 @@ const FX = (() => {
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // Floating numbers are drawn in canvas pixels (HIRES finer than the world).
   function drawTexts(ctx, cam) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     for (const t of texts) {
-      const sx = (t.x - t.y) * HALF_W - cam.x;
-      const sy = (t.x + t.y) * HALF_H - t.z - cam.y;
+      const sx = ((t.x - t.y) * HALF_W - cam.x) * HIRES;
+      const sy = ((t.x + t.y) * HALF_H - t.z - cam.y) * HIRES;
       const k = t.t / t.life;
       if (k > 0.75) ctx.globalAlpha = 1 - (k - 0.75) / 0.25;
-      const pop = t.t < 0.08 ? 1 + (0.08 - t.t) * 6 : 1;
-      Font.draw(ctx, t.s, sx, sy, t.color, { align: 'center', outline: '#120a18', scale: Math.max(1, Math.round((t.scale || 1) * pop)) });
+      const pop = t.t < 0.1 ? 1 + (0.1 - t.t) * 8 : 1;
+      Font.draw(ctx, t.s, Math.round(sx), Math.round(sy), t.color, { align: 'center', outline: '#120a18', scale: Math.max(1, Math.round((t.scale || 1) * pop * 1.34)) });
       ctx.globalAlpha = 1;
     }
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
   }
 
   // ---- presets ------------------------------------------------------------------
@@ -2404,6 +2472,64 @@ const FX = (() => {
     },
     chakra(x, y, n, colors) {
       burst(x, y, 12, n, { colors: colors || ELEM_COLORS.shinobi, kind: 'glow', min: 0.5, max: 2, g: -60, drag: 3, lifeMin: 0.2, lifeMax: 0.5, add: true, size: 1.5 });
+    },
+    // Motion smear that follows a fighter's strike: 'arc' = swept crescent
+    // (kicks, sweeps, uppercuts), 'thrust' = speed streaks along the punch line.
+    smear(f, o = {}) {
+      const ang0 = f.facing, reach = o.reach || 1, arc = o.arc || 1.4, z0 = o.z !== undefined ? o.z : 16;
+      const col = o.color || '#ffffff', edge = o.edge || '#bfe0ff', rise = o.rise || 0, dir = o.dir || 1;
+      const kind = o.kind || 'arc';
+      api.custom({
+        life: o.life || 0.13, layer: 1,
+        draw(ctx, cam, k) {
+          ctx.globalAlpha = (1 - k) * 0.9;
+          if (kind === 'thrust') {
+            const ca = Math.cos(ang0), sa = Math.sin(ang0), px = -sa, py = ca;
+            for (let n = -1; n <= 1; n++) {
+              const off = n * 0.09, len = reach * (n === 0 ? 1 : 0.7), st = 0.25 + k * 0.35;
+              const [ax, ay] = DF.sp(f.x + ca * st + px * off, f.y + sa * st + py * off, f.z + z0 + n * 2, cam);
+              const [bx, by] = DF.sp(f.x + ca * (st + len) + px * off, f.y + sa * (st + len) + py * off, f.z + z0 + n * 2, cam);
+              ctx.fillStyle = n === 0 ? col : edge;
+              PX.line(ctx, ax, ay, bx, by, n === 0 && k < 0.4 ? 2 : 1);
+            }
+            ctx.globalAlpha = 1;
+            return;
+          }
+          const sweep = Math.min(1, k * 3.2), N = 16;
+          for (let i = 0; i <= N; i++) {
+            const u = i / N;
+            if (u > sweep) break;
+            const a = ang0 + dir * (-arc / 2 + arc * u);
+            const r = reach * (0.7 + 0.3 * Math.sin(u * Math.PI));
+            const [sx, sy] = DF.sp(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r, f.z + z0 + rise * (0.5 - u), cam);
+            const th = Math.max(1, Math.round(Math.sin(u * Math.PI) * 3 * (1 - k) + 0.4));
+            ctx.fillStyle = edge; ctx.fillRect(Math.round(sx - th / 2) - 1, Math.round(sy - th / 2), th + 2, th);
+            ctx.fillStyle = col; ctx.fillRect(Math.round(sx - th / 2), Math.round(sy - th / 2), th, Math.max(1, th - 1));
+          }
+          ctx.globalAlpha = 1;
+        },
+      });
+    },
+    // Comic-style starburst where a blow lands.
+    impact(x, y, z, power = 1, color) {
+      const rot = R(0, TAU), rays = power > 1.5 ? 10 : 8;
+      api.custom({
+        life: 0.12 + power * 0.03, layer: 1,
+        draw(ctx, cam, k) {
+          const [sx, sy] = DF.sp(x, y, z, cam);
+          const Rr = (5 + power * 5) * (0.55 + k * 0.8);
+          ctx.globalAlpha = 1 - k;
+          ctx.fillStyle = color || '#fff2b0';
+          for (let i = 0; i < rays; i++) {
+            const a = rot + i * TAU / rays, len = Rr * (i % 2 ? 0.6 : 1);
+            PX.line(ctx, sx + Math.cos(a) * Rr * 0.3, sy + Math.sin(a) * Rr * 0.25, sx + Math.cos(a) * len, sy + Math.sin(a) * len * 0.8, i % 2 ? 1 : 2);
+          }
+          ctx.fillStyle = '#ffffff';
+          PX.circle(ctx, sx, sy, Math.max(1, Math.round((1 - k) * (2 + power * 1.8))));
+          if (power > 1) PX.ellipseRing(ctx, sx, sy, Math.round(Rr * 1.1), Math.round(Rr * 0.8), 1);
+          ctx.globalAlpha = 1;
+        },
+      });
     },
     // Ghost image of a sprite that fades (dash trails, flash step).
     afterimage(canvas, x, y, z, flip, life = 0.25, alpha = 0.55) {
@@ -3476,10 +3602,10 @@ const GEN = {
     const riverX = (j) => W * 0.74 + Math.sin(j * 0.11 + A.seed) * 4 + Math.sin(j * 0.27) * 1.5;
     for (let j = 0; j < W; j++) {
       const rx = riverX(j);
-      for (let i = Math.floor(rx - 2); i <= Math.ceil(rx + 2); i++) if (A.inBounds(i, j) && Math.abs(i + 0.5 - rx) <= 1.9) A.tiles[A.idx(i, j)] = T_WATER;
+      for (let i = Math.floor(rx - 3); i <= Math.ceil(rx + 3); i++) if (A.inBounds(i, j) && Math.abs(i + 0.5 - rx) <= 2.7) A.tiles[A.idx(i, j)] = T_WATER;
     }
     // pond feeding the river
-    GEN._disc(A, W * 0.8, W * 0.72, 5, T_WATER, 3, A.seed);
+    GEN._disc(A, W * 0.8, W * 0.72, 6.5, T_WATER, 3, A.seed);
     // roads from plaza
     GEN._path(A, [[c, c], [c, 6]], 2.2, T_STONE);
     GEN._path(A, [[c, c], [6, c]], 2.2, T_STONE);
@@ -3487,7 +3613,7 @@ const GEN = {
     GEN._path(A, [[c, c], [c, W - 6]], 2.2, T_STONE);
     for (const bj of [c - 1, c, c + 1, 14, 15, 46, 47]) {
       const rx = riverX(bj);
-      for (let i = Math.floor(rx - 3); i <= Math.ceil(rx + 3); i++) if (A.inBounds(i, bj) && A.tiles[A.idx(i, bj)] === T_WATER) A.tiles[A.idx(i, bj)] = T_WOOD;
+      for (let i = Math.floor(rx - 4); i <= Math.ceil(rx + 4); i++) if (A.inBounds(i, bj) && A.tiles[A.idx(i, bj)] === T_WATER) A.tiles[A.idx(i, bj)] = T_WOOD;
     }
     // village (north-west quadrant)
     for (let hy = 6; hy < c - 8; hy += 7) {
@@ -3530,15 +3656,15 @@ const GEN = {
     // great river down the middle, widening into a lake in the south
     const rx = (j) => c + Math.sin(j * 0.08 + 1) * 3;
     for (let j = 0; j < W; j++) {
-      const width = 2.2 + Math.max(0, (j - W * 0.62)) * 0.25;
+      const width = 3 + Math.max(0, (j - W * 0.62)) * 0.25;
       const x = rx(j);
       for (let i = Math.floor(x - width - 1); i <= Math.ceil(x + width + 1); i++) if (A.inBounds(i, j) && Math.abs(i + 0.5 - x) <= width) A.tiles[A.idx(i, j)] = T_WATER;
     }
-    GEN._disc(A, c, W * 0.8, 7.5, T_WATER, 4, A.seed + 4);
+    GEN._disc(A, c, W * 0.8, 9, T_WATER, 4, A.seed + 4);
     // stepping stones across the river
     for (const j of [16, 30, 38]) {
       const x = Math.floor(rx(j));
-      for (let i = x - 4; i <= x + 4; i++) if (A.inBounds(i, j) && A.tiles[A.idx(i, j)] === T_WATER && (i % 2 === 0)) A.tiles[A.idx(i, j)] = T_STONE;
+      for (let i = x - 5; i <= x + 5; i++) if (A.inBounds(i, j) && A.tiles[A.idx(i, j)] === T_WATER && (i % 2 === 0)) A.tiles[A.idx(i, j)] = T_STONE;
     }
     // twin statues guarding the falls (north)
     const sj = 8;
@@ -3567,8 +3693,8 @@ const GEN = {
     GEN._noisePatch(A, T_DIRT, 0.1, 0.66, A.seed + 5);
     // oasis
     const ox = c + 13, oy = c - 12;
-    GEN._disc(A, ox, oy, 8, T_GRASS, 3, A.seed + 1);
-    GEN._disc(A, ox, oy, 5, T_WATER, 3, A.seed + 2);
+    GEN._disc(A, ox, oy, 10, T_GRASS, 3, A.seed + 1);
+    GEN._disc(A, ox, oy, 6.5, T_WATER, 3, A.seed + 2);
     // ruined temple complex (west)
     const tx = c - 16, ty = c - 4;
     GEN._rect(A, tx - 7, ty - 8, tx + 7, ty + 8, T_STONE);
@@ -3598,7 +3724,7 @@ const GEN = {
     GEN._fill(A, T_SNOW);
     GEN._noisePatch(A, T_ROCK, 0.1, 0.63, A.seed + 1);
     // frozen lake
-    GEN._disc(A, c + 6, c + 8, 7, T_WATER, 4, A.seed + 3);
+    GEN._disc(A, c + 6, c + 8, 8.5, T_WATER, 4, A.seed + 3);
     GEN._path(A, [[c, 6], [c, W - 6]], 2.4, T_STONE);
     GEN._disc(A, c, c, 5, T_STONE);
     // mountain shrine north
@@ -3712,6 +3838,19 @@ const Combat = {
     if (src && src.counterBonus > 0 && h.kind !== 'dot') { dmg *= 1.3; src.counterBonus = 0; }
     dmg = Math.max(1, Math.round(dmg));
 
+    // A ridden summon soaks the hit with its own shield.
+    if (t.mount && t.mount.shield > 0 && h.kind !== 'dot') {
+      t.mount.shield -= dmg;
+      t.flash = 0.06;
+      FX.hit(t.x, t.y, t.visZ() + 8, h.element || 'phys', Math.min(2, dmg / 30));
+      FX.add({ x: t.x, y: t.y, z: t.visZ() + 4, vz: 40, g: 80, life: 0.6, color: '#ffffff', size: 2, vx: U.rand(-1, 1), vy: U.rand(-1, 1) });
+      if (W.showNumbers) FX.text(t.x, t.y, t.visZ() + 30, String(dmg), '#c8d8e8');
+      if (src) { const owner = src.owner || src; owner.gainMeters(dmg * 0.5, 'deal'); t.lastAttackers.set(owner, W.time); }
+      SFX.playAt('block', t.x, t.y, 0.5);
+      if (t.mount.shield <= 0) { FX.text(t.x, t.y, t.visZ() + 40, 'SUMMON BROKEN', '#ffb070', { life: 0.8 }); t.dismount('broken'); t.enterHitstun(0.35); }
+      return 'hit';
+    }
+
     Combat.applyDamage(t, dmg, src, h, false, crit);
     // controller rumble for the local player
     const P = W.player;
@@ -3763,6 +3902,10 @@ const Combat = {
       if (src && h.kind === 'melee') src.freeze = Math.max(src.freeze, hs * 0.85);
       t.flash = 0.1;
       FX.hit(t.x, t.y, t.z + 14, h.element || 'phys', Math.min(3, dmg / 30));
+      if (h.kind === 'melee' || dmg >= 35) {
+        const el = h.element && ELEMENTS[h.element];
+        FX.impact(t.x - kx * 0.15, t.y - ky * 0.15, t.z + 15, Math.min(2.6, 0.5 + dmg / 28), crit ? '#ffe14a' : el ? el.light : null);
+      }
       if (h.sfx !== false) SFX.playAt(h.sfx || (dmg > 45 ? 'hitHeavy' : 'hit'), t.x, t.y, Math.min(1, 0.5 + dmg / 100));
       if (W.camTarget && (t === W.camTarget || src === W.camTarget)) W.shake(Math.min(7, 1 + dmg / 22));
     }
@@ -4245,16 +4388,31 @@ class Fighter {
     if (this.st.wet > 0) m.speed *= 0.92;
     this.mod = m;
   }
+  // Standing in or beside water (river, lake, or a soaked tile)?
+  waterNearby() {
+    const A = W.arena;
+    if (!this._wnT || this.time - this._wnT > 0.25) {
+      this._wnT = this.time;
+      this._wn = false;
+      for (let dj = -1; dj <= 1 && !this._wn; dj++) for (let di = -1; di <= 1; di++) {
+        if (A.isWetW(this.x + di * 1.1, this.y + dj * 1.1)) { this._wn = true; break; }
+      }
+    }
+    return this._wn;
+  }
+  // Water jutsu cast near water swell in size (read by the jutsu size scale).
+  get envBoost() { return this.waterBoostT > 0 && this.lastCastWater ? 1.35 : 1; }
   dmgMult(element, h) {
     let k = this.mod.dmg;
     if (element && element === this.affinity) k *= 1.15;
+    if (element === 'water' && this.waterBoostT > 0) k *= 1.3;
     if (h && h.kind === 'melee') k *= this.mod.meleeDmg;
     if (this.isClone) k *= 0.6;
     return k;
   }
   defMult() { return this.mod.def; }
   critChance() { return this.mod.crit; }
-  hasArmor() { return this.mod.armor || this.state === 'awaken'; }
+  hasArmor() { return this.mod.armor || this.state === 'awaken' || !!this.mount; }
   knockTaken() { return this.mod.knockTaken; }
   parryWindow() { return this.blockGap < 0.35 ? 0 : this.mod.parryWindow; }
   moveSpeed() { return BASE_SPEED * this.mod.speed; }
@@ -4371,9 +4529,13 @@ class Fighter {
     this.comboShowT = Math.max(0, this.comboShowT - dt);
     for (const s of this.jutsu) if (s && s.cd > 0) s.cd = Math.max(0, s.cd - dt);
     if (this.dead) return;
+    if (this.mount && this.state !== 'mount') this.dismount('knocked');
     // resources
     const m = this.mod;
-    this.chakra = Math.min(this.maxChakra, this.chakra + 3.2 * m.chakraRegen * dt);
+    this.waterBoostT = Math.max(0, (this.waterBoostT || 0) - dt);
+    // water users draw chakra from nearby water
+    const waterRegen = this.affinity === 'water' && this.z < 20 && this.waterNearby() ? 1.6 : 1;
+    this.chakra = Math.min(this.maxChakra, this.chakra + 3.2 * m.chakraRegen * waterRegen * dt);
     if (this.state !== 'block') {
       this.guardRegenDelay -= dt;
       if (this.guardRegenDelay <= 0) this.guard = Math.min(100, this.guard + 30 * dt);
@@ -4454,8 +4616,96 @@ class Fighter {
       case 'awaken': this.stAwaken(dt, inp); break;
       case 'ult': this.stUlt(dt, inp); break;
       case 'victory': this.mvx = this.mvy = 0; break;
+      case 'mount': this.stMount(dt, inp); break;
       default: this.setState('idle');
     }
+  }
+
+  // ---- summons: riding the Storm Hawk ---------------------------------------------
+  // The rider hovers over everything; attack drops bombs on the aim point,
+  // heavy dive-bombs and dismounts. The hawk's shield soaks incoming damage.
+  mountUp(o) {
+    this.cancelAction();
+    this.mount = Object.assign({ type: 'hawk', t: 10, shield: 150, maxShield: 150, lift: 0, fireCD: 0.3, flap: 0, dmg: 26, bombR: 1.3 }, o);
+    this.z = 0; this.vz = 0; this.vx = this.vy = 0;
+    this.jumps = 0;
+    this.setState('mount');
+    FX.poof(this.x, this.y, 18);
+    FX.ring(this.x, this.y, 0.4, '#9af0c8', 0.4, 8, 2);
+    SFX.playAt('poof', this.x, this.y, 0.9);
+    SFX.playAt('wind', this.x, this.y, 0.8);
+  }
+
+  visZ() { return this.mount ? this.z + this.mount.lift + Math.sin(this.time * 4) * 1.5 : this.z; }
+
+  stMount(dt, inp) {
+    const m = this.mount;
+    if (!m) { this.setState('idle'); return; }
+    m.t -= dt; m.fireCD -= dt; m.flap += dt * (Math.hypot(this.mvx, this.mvy) > 1 ? 9 : 6);
+    m.lift = Math.min(34, m.lift + dt * 110);
+    this.walk(inp, 1.55, 18);
+    const moving = Math.hypot(inp.mx, inp.my) > 0.1;
+    if (inp.ax !== null && inp.ax !== undefined) this.faceAim(this.isPlayer ? 0 : 10 * dt);
+    else if (moving) this.facing = Math.atan2(inp.my, inp.mx);
+    // wind wash under the wings
+    if (Math.random() < dt * 10) FX.add({ x: this.x + U.rand(-0.8, 0.8), y: this.y + U.rand(-0.8, 0.8), z: 1, vx: U.rand(-1.5, 1.5), vy: U.rand(-1.5, 1.5), drag: 2, life: 0.5, color: ['#e8fff4', '#bfe8d8'], size: 1, layer: 0 });
+    if (m.lift > 20 && (inp.light || inp.lightHeld) && m.fireCD <= 0) this.hawkBomb();
+    if (this.tryUlt(inp)) return;
+    if (inp.heavyPressed || this.takeBuf('heavy') || inp.jump) { this.dismount(inp.jump ? 'hop' : 'dive'); return; }
+    if (m.t <= 0) this.dismount('expire');
+  }
+
+  hawkBomb() {
+    const m = this.mount;
+    m.fireCD = 0.3;
+    const a = this.aimPoint(6.5, 0);
+    const tx = a.x + U.rand(-0.2, 0.2), ty = a.y + U.rand(-0.2, 0.2);
+    const ox = this.x, oy = this.y, oz = this.visZ() + 6, L = this.lvlOf('summonhawk'), me = this;
+    SFX.playAt('kunai', this.x, this.y, 0.5);
+    Combat.aoe({
+      src: this, x: tx, y: ty, r: m.bombR, delay: 0.32, dmg: m.dmg * D(L), element: 'wind', noTelegraph: false,
+      hit: { ability: 'summonhawk', knock: 3.5, stun: 0.4, launch: 90, blockDmg: 35 },
+      draw(ctx, cam) {
+        if (this.fired) return;
+        const k = Math.min(1, this.t / this.delay);
+        const x = U.lerp(ox, tx, k), y = U.lerp(oy, ty, k), z = oz * (1 - k * k);
+        const [sx, sy] = DF.sp(x, y, z, cam);
+        ctx.fillStyle = '#120a18'; PX.circle(ctx, sx, sy, 4);
+        ctx.fillStyle = '#5fd0a0'; PX.circle(ctx, sx, sy, 3);
+        ctx.fillStyle = '#e8fff4'; ctx.fillRect(sx - 1, sy - 2, 2, 2);
+        // feather fins
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - 1, sy - 6, 2, 3);
+      },
+      onFire() { FX.wind(tx, ty, 6, 10); FX.leaves(tx, ty, 8, 4); void me; },
+    });
+  }
+
+  dismount(how) {
+    const m = this.mount;
+    if (!m) return;
+    this.mount = null;
+    const hz = Math.max(0, m.lift);
+    FX.poof(this.x, this.y, 14);
+    FX.leaves(this.x, this.y, hz + 10, 8);
+    SFX.playAt('poof', this.x, this.y, 0.7);
+    if (this.dead) return;
+    if (how === 'dive') {
+      // the hawk dive-bombs the aim point while you drop off
+      const a = this.aimPoint(5, 0), L = this.lvlOf('summonhawk'), src = this;
+      Combat.aoe({
+        src, x: a.x, y: a.y, r: 2.2, delay: 0.3, dmg: 70 * D(L), element: 'wind',
+        hit: { ability: 'summonhawk', knock: 7, launch: 200, stun: 0.6, blockDmg: 80 },
+        draw(ctx, cam) {
+          if (this.fired) return;
+          const k = Math.min(1, this.t / this.delay);
+          const [sx, sy] = DF.sp(U.lerp(src.x, a.x, k), U.lerp(src.y, a.y, k), 40 * (1 - k), cam);
+          drawHawk(ctx, sx, sy, Math.atan2(a.y - src.y, a.x - src.x), 0.5, true);
+        },
+      });
+    }
+    this.z = hz; this.vz = how === 'hop' ? 160 : 40; this.jumps = 1;
+    this.iframes = Math.max(this.iframes, 0.2);
+    if (this.state === 'mount') this.setState('idle');
   }
 
   faceAim(rate) {
@@ -4523,6 +4773,14 @@ class Fighter {
     const sp = Math.hypot(this.mvx, this.mvy);
     this.animT += dt * (0.4 + sp / 4.3) * 1.25;
     const st = sp > 0.4 ? 'move' : 'idle';
+    // footfalls: a puff of dust (or a splash) each time a foot plants
+    const rf = Math.floor(this.animT * 7) % 8;
+    if (st === 'move' && !air && rf !== this.runFrame && (rf === 0 || rf === 4)) {
+      const bx = this.x - Math.cos(this.facing) * 0.15, by = this.y - Math.sin(this.facing) * 0.15;
+      if (W.arena.isWaterW(this.x, this.y)) FX.splash(bx, by, 3, 0.5);
+      else if (sp > 3) FX.dust(bx, by, 2);
+    }
+    this.runFrame = rf;
     if (st !== this.state) { this.state = st; }
   }
 
@@ -4551,6 +4809,7 @@ class Fighter {
     this.atkQueued = false;
     this.atkConnected = false;
     this.atkBlocks = false;
+    this.smeared = false;
     if (this.inp && this.inp.ax !== null) this.faceAim();
     this.lockTarget = this.softLock(this.atk.dashAttack ? 3 : 2.4);
     this.setState('attack');
@@ -4570,6 +4829,7 @@ class Fighter {
       if (a.air) this.vz = Math.max(this.vz, a.spike ? -80 : 40); // hang in the air while striking
       else if (Math.random() < 0.5) FX.dust(this.x, this.y, 1);
     } else { this.mvx *= 0.6; this.mvy *= 0.6; }
+    if (t >= a.wind && !this.smeared) { this.smeared = true; this.strikeSmear(a.pose, a.range); }
     if (t >= a.wind && t < a.wind + a.act + 0.02) this.meleeCheck(a);
     const endAct = a.wind + a.act;
     if (t >= endAct) {
@@ -4602,6 +4862,23 @@ class Fighter {
       this.comboResume = a.finisher || a.chase || a.air ? 99 : a.dashAttack ? 0 : (a.side || a.back) ? 1 : this.comboStep + 1;
       this.setState('idle');
     }
+  }
+
+  // Motion smear matching the strike's shape.
+  strikeSmear(pose, range = 1.2) {
+    const el = this.mod.meleeElement && ELEMENTS[this.mod.meleeElement];
+    const o = { reach: range * 0.95, color: el ? el.light : '#ffffff', edge: el ? el.color : '#a8c8ff' };
+    switch (pose) {
+      case 'jab': case 'cross': case 'airpunch': case 'palm': Object.assign(o, { kind: 'thrust', z: 18, reach: range * 0.8 }); break;
+      case 'lunge': Object.assign(o, { kind: 'thrust', z: 17, reach: range * 1.2, life: 0.16 }); break;
+      case 'kick': case 'airkick': Object.assign(o, { arc: 1.5, z: 20, rise: 10 }); break;
+      case 'sweep': Object.assign(o, { arc: 2.6, z: 3, reach: range * 1.05, life: 0.16 }); break;
+      case 'uppercut': Object.assign(o, { arc: 0.7, z: 14, rise: -26, reach: range * 0.7 }); break;
+      case 'slam': case 'dive': Object.assign(o, { arc: 1.2, z: 22, rise: 24, reach: range * 0.8 }); break;
+      case 'spin': Object.assign(o, { arc: TAU * 0.9, z: 16, life: 0.2, dir: this.flip ? -1 : 1 }); break;
+      default: Object.assign(o, { arc: 1.4 });
+    }
+    FX.smear(this, o);
   }
 
   // Air heavy: plunge down at an angle, spiking anyone in the way, then
@@ -4711,6 +4988,8 @@ class Fighter {
         this.softLock(this.heavyKind === 'forward' ? 4.5 : 2.4);
         this.heavyHit = new Set();
         SFX.playAt('swing', this.x, this.y, 0.9);
+        if (this.heavyKind === 'back') { this.strikeSmear('spin', 1.5); FX.smear(this, { arc: TAU * 0.9, z: 8, reach: 1.4, life: 0.35, dir: -1, color: '#e8f0ff' }); }
+        else this.strikeSmear(this.heavyKind === 'forward' ? 'lunge' : 'uppercut', 1.4);
       }
       return;
     }
@@ -4920,6 +5199,17 @@ class Fighter {
       const cam = W.camTarget;
       if (!this.isClone && (W.isWatched(this) || (cam && U.dist(cam.x, cam.y, this.x, this.y) < 8))) {
         FX.text(this.x, this.y, this.z + 58, s.def.name.toUpperCase() + '!', (ELEMENTS[s.def.element] || ELEMENTS.shinobi).light, { life: 0.75, vz: 12 });
+      }
+      this.lastCastWater = s.def.element === 'water';
+      if (this.lastCastWater && this.waterNearby()) {
+        this.waterBoostT = 2.2;
+        FX.text(this.x, this.y, this.z + 46, 'WATER BOOST', '#9ad4ff', { life: 0.8, vz: 20 });
+        FX.splash(this.x, this.y, 18, 1.4);
+        FX.ring(this.x, this.y, 0.4, '#9ad4ff', 0.4, 7, 2);
+        for (let k = 0; k < 10; k++) {
+          const a = U.rand(0, TAU);
+          FX.add({ x: this.x + Math.cos(a) * 1.2, y: this.y + Math.sin(a) * 1.2, z: 0, vx: -Math.cos(a) * 2.4, vy: -Math.sin(a) * 2.4, vz: U.rand(60, 120), g: 260, life: 0.5, color: ['#e8f6ff', '#9ad4ff', '#3fa0ff'], size: 2 });
+        }
       }
       s.def.use(this, this.lvlOf(s.id), this.aim());
       if (this.state === 'cast') this.setState('recover');
@@ -5236,6 +5526,7 @@ class Fighter {
     if (this.dead) return;
     this.cancelAction();
     this.dead = true;
+    if (this.mount) this.dismount('death');
     this.deadT = 0;
     this.setState('dead');
     this.awakened = null;
@@ -5265,6 +5556,15 @@ class Fighter {
   // ---- physics ----------------------------------------------------------------------------
   physics(dt) {
     const A = W.arena;
+    if (this.mount) {
+      // flying: glide over props and water, only the arena edge stops you
+      const k = Math.exp(-2.5 * dt);
+      this.vx *= k; this.vy *= k;
+      this.x = U.clamp(this.x + (this.vx + this.mvx) * dt, 2.6, A.w - 2.6);
+      this.y = U.clamp(this.y + (this.vy + this.mvy) * dt, 2.6, A.h - 2.6);
+      this.z = 0; this.vz = 0;
+      return;
+    }
     const air = this.z > 0 || this.vz > 0;
     const fr = air ? 1.2 : (this.state === 'hitstun' || this.dead) ? 5.5 : 9;
     const k = Math.exp(-fr * dt);
@@ -5349,7 +5649,7 @@ class Fighter {
   }
 
   envEffects(dt) {
-    if (this.z > 2) return;
+    if (this.z > 2 || this.mount) return;
     const A = W.arena;
     const i = Math.floor(this.x), j = Math.floor(this.y);
     const k = A.idx(i, j);
@@ -5380,20 +5680,25 @@ class Fighter {
       case 'idle': case 'move':
         if (this.z > 1) return [this.vz > 0 ? 'jump' : 'fall', 0];
         return this.state === 'idle' ? ['idle', Math.floor(t * 2.2) % 2] : ['run', Math.floor(this.animT * 7) % 8];
-      case 'attack': return [this.stateT * this.atkSpeed < this.atk.wind * 0.5 && !this.atk.chase ? (this.atk.air ? 'jump' : 'idle') : this.atk.pose, this.atk.back ? Math.floor(this.stateT * 14) % 2 : 0];
+      case 'attack': {
+        const a = this.atk, at = this.stateT * this.atkSpeed;
+        if (a.back) return ['spin', Math.floor(this.stateT * 14) % 2];
+        if (Sprites.frameCount(a.pose) < 3) return [a.pose, 0];
+        return [a.pose, at < a.wind ? 0 : at < a.wind + a.act + 0.05 ? 1 : 2];
+      }
       case 'heavy':
         if (!this.heavyReleased) return ['heavyWind', 0];
-        if (this.heavyKind === 'forward') return ['lunge', 0];
+        if (this.heavyKind === 'forward') return ['lunge', this.heavyT < 0.26 ? 1 : 2];
         if (this.heavyKind === 'back') return ['spin', Math.floor(this.heavyT * 12) % 2];
-        return ['uppercut', 0];
-      case 'dive': return ['dive', 0];
+        return ['uppercut', this.heavyT < 0.03 ? 0 : this.heavyT < 0.2 ? 1 : 2];
+      case 'dive': return ['dive', this.stateT < 0.08 ? 0 : 1];
       case 'dash': return ['dash', 0];
       case 'block': return ['block', 0];
       case 'cast': return ['seal', Math.floor(this.stateT * 12) % 2];
-      case 'channel': return [(this.channel && this.channel.pose) || 'release', 0];
-      case 'jdash': return [(this.jd && this.jd.pose) || 'dash', 0];
-      case 'recover': return [this.recoverPose || 'release', 0];
-      case 'throw': return ['throw', 0];
+      case 'channel': { const p = (this.channel && this.channel.pose) || 'release'; return [p, Sprites.frameCount(p) >= 3 ? 1 : 0]; }
+      case 'jdash': { const p = (this.jd && this.jd.pose) || 'dash'; return [p, Sprites.frameCount(p) >= 3 ? 1 : 0]; }
+      case 'recover': { const p = this.recoverPose || 'release'; return [p, Sprites.frameCount(p) >= 3 ? (this.stateT < 0.08 ? 1 : 2) : 0]; }
+      case 'throw': return ['throw', !this.thrown ? 0 : this.stateT - this.throwAt < 0.07 ? 1 : 2];
       case 'hitstun': return ['hurt', this.hurtFrame];
       case 'air': return ['air', 0];
       case 'down': case 'dead': return ['lying', 0];
@@ -5403,6 +5708,7 @@ class Fighter {
       case 'awaken': return ['raise', 0];
       case 'ult': return [(this.ultimate && this.ultimate.pose) || 'raise', 0];
       case 'victory': return ['victory', 0];
+      case 'mount': return ['ride', this.mount && this.mount.fireCD > 0.18 ? 1 : 0];
       default: return ['idle', 0];
     }
   }
@@ -5426,7 +5732,7 @@ class Fighter {
 
 const JUTSU = {};
 const D = (L) => 1 + 0.12 * (L - 1);                   // damage scale
-const SZ = (f, L) => (1 + 0.07 * (L - 1)) * f.mod.jutsuSize; // size scale
+const SZ = (f, L) => (1 + 0.07 * (L - 1)) * f.mod.jutsuSize * (f.envBoost || 1); // size scale (envBoost: water jutsu cast near water)
 
 function defJutsu(o) { JUTSU[o.id] = o; }
 
@@ -5593,7 +5899,7 @@ defJutsu({
   desc: 'Summon a serpent of water that hunts its target and crashes through several foes.',
   mastery: 'Lv5: Pierces everything and grows larger.', ai: { min: 2, max: 10, kind: 'proj' },
   use(f, L, aim) {
-    const s = SZ(f, L) * (L >= 5 ? 1.25 : 1);
+    const s = SZ(f, L) * (L >= 5 ? 1.25 : 1) * 1.2;
     shoot(f, aim.ang, 8.5, {
       kind: 'dragon', cols: ['#ffffff', '#b8e4ff', '#3fa0ff', '#174f9c'], element: 'water', size: Math.round(6 * s), radius: 0.6 * s, life: 1.6,
       dmg: 85 * D(L), knock: 8, launch: 150, stun: 0.6, homing: 1.8, pierce: L >= 5 ? 99 : 2, status: { wet: 6 }, ability: 'waterdragon',
@@ -5617,7 +5923,8 @@ defJutsu({
         c.acc += dt;
         if (c.acc >= 0.11 && c.shots < n) {
           c.acc = 0; c.shots++;
-          shoot(f, f.facing + U.rand(-0.05, 0.05), 14, { kind: 'waterball', element: 'water', size: 2, radius: 0.28, life: 0.65, dmg: 18 * D(L), knock: 1.6, stun: 0.28, status: { wet: 4 }, ability: 'waterbullets', clash: 0.7, blockDmg: 10, trail: TRAIL.water, onImpact(p) { FX.splash(p.x, p.y, 4, 0.6); } });
+          const s = SZ(f, L);
+          shoot(f, f.facing + U.rand(-0.05, 0.05), 14, { kind: 'waterball', element: 'water', size: Math.round(3 * s), radius: 0.32 * s, life: 0.65, dmg: 18 * D(L), knock: 1.6, stun: 0.28, status: { wet: 4 }, ability: 'waterbullets', clash: 0.7, blockDmg: 10, trail: TRAIL.water, onImpact(p) { FX.splash(p.x, p.y, 4, 0.6); } });
           SFX.playAt('splash', f.x, f.y, 0.5);
         }
       },
@@ -5632,7 +5939,7 @@ defJutsu({
   use(f, L, aim) {
     const dur = L >= 5 ? 2.3 : 1.5;
     shoot(f, aim.ang, 9, {
-      kind: 'bubble', element: 'water', size: 5, radius: 0.45, life: 0.9, dmg: 10, knock: 0, stun: 0.2, ability: 'waterprison', clash: 1, blockDmg: 5, trail: TRAIL.water,
+      kind: 'bubble', element: 'water', size: Math.round(6 * SZ(f, L)), radius: 0.5 * SZ(f, L), life: 0.9, dmg: 10, knock: 0, stun: 0.2, ability: 'waterprison', clash: 1, blockDmg: 5, trail: TRAIL.water,
       onHit(p, t) {
         t.applyStatus({ genjutsu: dur, wet: 6 }, f);
         t.vx = t.vy = 0;
@@ -5702,13 +6009,13 @@ defJutsu({
   desc: 'Send a wide wave rolling forward that sweeps enemies away and douses flames.',
   mastery: 'Lv5: A much wider, heavier wave.', ai: { min: 1, max: 6, kind: 'proj' },
   use(f, L, aim) {
-    const width = (L >= 5 ? 4.5 : 3.2) * SZ(f, L);
-    spawnWave(f, aim.ang, width, 7, 0.8, { dmg: 45 * D(L), knock: 9, stun: 0.55, ability: 'tidalwave' });
+    const width = (L >= 5 ? 5 : 3.8) * SZ(f, L);
+    spawnWave(f, aim.ang, width, 7.5 * Math.min(1.3, f.envBoost || 1), 0.8, { dmg: 45 * D(L), knock: 9, stun: 0.55, ability: 'tidalwave' }, 22 * SZ(f, L));
     SFX.playAt('water', f.x, f.y, 1);
   },
 });
 
-function spawnWave(f, ang, width, dist, dur, hit) {
+function spawnWave(f, ang, width, dist, dur, hit, height = 18) {
   const dx = Math.cos(ang), dy = Math.sin(ang), nx = -dy, ny = dx;
   return Combat.hazard({
     src: f, x: f.x + dx * 0.8, y: f.y + dy * 0.8, hitSet: new Set(), layer: 1,
@@ -5737,14 +6044,18 @@ function spawnWave(f, ang, width, dist, dur, hit) {
     },
     draw(ctx, cam) {
       if (this.cx === undefined) return;
-      const h = 18 + Math.sin(this.t * 20) * 2;
+      const h = height + Math.sin(this.t * 20) * 2;
       for (let o = -width / 2; o <= width / 2; o += 0.15) {
         const px = this.cx + nx * o, py = this.cy + ny * o;
         const [sx, sy] = DF.sp(px, py, 0, cam);
-        const hh = h * (1 - Math.pow(Math.abs(o) / (width / 2), 3) * 0.7);
-        ctx.fillStyle = '#1f6ad0'; ctx.fillRect(sx - 2, sy - hh, 4, hh);
-        ctx.fillStyle = '#3fa0ff'; ctx.fillRect(sx - 2, sy - hh, 4, hh * 0.6);
-        ctx.fillStyle = '#e8f6ff'; ctx.fillRect(sx - 2, sy - hh - 1, 4, 2);
+        const hh = Math.round(h * (1 - Math.pow(Math.abs(o) / (width / 2), 3) * 0.7) + Math.sin(o * 5 + this.t * 14) * 2);
+        ctx.fillStyle = '#174f9c'; ctx.fillRect(sx - 2, sy - hh, 4, hh);
+        ctx.fillStyle = '#1f6ad0'; ctx.fillRect(sx - 2, sy - hh, 4, hh * 0.75);
+        ctx.fillStyle = '#3fa0ff'; ctx.fillRect(sx - 2, sy - hh, 4, hh * 0.45);
+        ctx.fillStyle = '#9ad4ff'; ctx.fillRect(sx - 2, sy - hh + 1, 4, 2);
+        // curling white crest
+        ctx.fillStyle = '#e8f6ff'; ctx.fillRect(sx - 2, sy - hh - 2, 4, 2);
+        if (((o * 20) | 0) % 3 === 0) ctx.fillRect(sx - 1 + ((this.t * 30 + o * 9) | 0) % 3, sy - hh - 4, 2, 2);
       }
     },
   });
@@ -6461,8 +6772,9 @@ defJutsu({
   use(f, L, aim) {
     const n = L >= 5 ? 2 : 1;
     for (let i = 0; i < n; i++) {
+      const s = SZ(f, L) * 1.15;
       shoot(f, aim.ang + (i - (n - 1) / 2) * 0.4, 10, {
-        kind: 'dragon', cols: ['#ffffff', '#8fd0ff', '#2f7ad0', '#123a78'], element: 'water', size: 5, radius: 0.5, life: 1.4, histLen: 6,
+        kind: 'dragon', cols: ['#ffffff', '#8fd0ff', '#2f7ad0', '#123a78'], element: 'water', size: Math.round(5 * s), radius: 0.5 * s, life: 1.4, histLen: 6,
         dmg: 62 * D(L), knock: 6, launch: 160, stun: 0.6, homing: 2.6, status: { wet: 6 }, ability: 'watershark', clash: 2, blockDmg: 40,
         trail(p, dt) { TRAIL.hist(p); TRAIL.water(p, dt); },
         onImpact(p) { FX.splash(p.x, p.y, 14, 1.2); W.arena.wetRadius(p.x, p.y, 1.2, 6); SFX.playAt('splash', p.x, p.y); },
@@ -6570,6 +6882,383 @@ defJutsu({
 });
 
 const JUTSU_LIST = () => Object.values(JUTSU);
+
+</script>
+<script>
+// ---- js/summons.js ----
+'use strict';
+// ---------------------------------------------------------------------------
+// Summoning jutsu: the Storm Hawk you ride (see Fighter.mountUp), the Great
+// Toad turret and the Giant Serpent charge. Pixel art is procedural and
+// cached, upscaled with EPX like the ninja sprites.
+// ---------------------------------------------------------------------------
+
+const SummonArt = (() => {
+  const OUTLINE = '#120a18';
+
+  // crisp polygon fill: a pixel is painted if its centre is inside
+  function poly(ctx, pts, col) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    ctx.fillStyle = col;
+    for (let y = Math.floor(y0); y <= Math.ceil(y1); y++) for (let x = Math.floor(x0); x <= Math.ceil(x1); x++) {
+      const px = x + 0.5, py = y + 0.5;
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i], [xj, yj] = pts[j];
+        if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  function ell(ctx, cx, cy, rx, ry, col) { ctx.fillStyle = col; PX.ellipse(ctx, cx, cy, rx, ry); }
+
+  function outline(c) {
+    const x = c.getContext('2d'), w = c.width, h = c.height;
+    const img = x.getImageData(0, 0, w, h), d = img.data;
+    const solid = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) solid[i] = d[i * 4 + 3] > 0 ? 1 : 0;
+    const [r, g, b] = U.hexToRgb(OUTLINE);
+    for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+      const i = y * w + xx;
+      if (solid[i]) continue;
+      if ((xx > 0 && solid[i - 1]) || (xx < w - 1 && solid[i + 1]) || (y > 0 && solid[i - w]) || (y < h - 1 && solid[i + w])) {
+        d[i * 4] = r; d[i * 4 + 1] = g; d[i * 4 + 2] = b; d[i * 4 + 3] = 255;
+      }
+    }
+    x.putImageData(img, 0, 0);
+  }
+
+  const cache = new Map();
+  function cached(key, w, h, draw) {
+    let c = cache.get(key);
+    if (c) return c;
+    const base = U.makeCanvas(w, h);
+    draw(base.getContext('2d'));
+    outline(base);
+    c = epx2(base);
+    cache.set(key, c);
+    return c;
+  }
+
+  // ---- Storm Hawk (64x44, facing right; anchor = back at 32,20) ------------------
+  const HK = { dark: '#2c4450', mid: '#3f6a7a', light: '#6fa8b8', pale: '#d8f0f0', belly: '#e8e4d8', beak: '#ffc83a', beakD: '#c88a1a', eye: '#ff4a3a' };
+  const FAR = [
+    [[28, 21], [38, 21], [26, 3], [18, 1], [13, 5]],
+    [[28, 21], [38, 21], [22, 11], [10, 11], [5, 15]],
+    [[28, 22], [38, 22], [25, 29], [14, 33], [10, 30]],
+    [[27, 20], [37, 20], [12, 16], [8, 19], [15, 22]],
+  ];
+  const NEAR = [
+    [[25, 21], [36, 21], [30, 6], [21, 2], [16, 6]],
+    [[25, 22], [36, 22], [27, 33], [13, 38], [8, 35]],
+    [[25, 22], [36, 22], [31, 38], [23, 43], [18, 40]],
+    [[25, 22], [38, 22], [10, 25], [7, 28], [16, 28]],
+  ];
+  // Scaled "pen": art is authored on a small grid and drawn S times larger
+  // (crisp shapes, single-pixel details stay fine) before the EPX pass.
+  function pen(x, S) {
+    const r = Math.round;
+    return {
+      S,
+      poly(pts, col) { poly(x, pts.map(([a, b]) => [a * S, b * S]), col); },
+      ell(cx, cy, rx, ry, col) { x.fillStyle = col; PX.ellipse(x, cx * S, cy * S, rx * S, ry * S); },
+      rect(a, b, w, h, col) { x.fillStyle = col; x.fillRect(r(a * S), r(b * S), Math.max(1, r(w * S)), Math.max(1, r(h * S))); },
+      line(a, b, c, d, col, w = 1) { x.fillStyle = col; PX.line(x, a * S, b * S, c * S, d * S, w); },
+      dot(a, b, col, n = 1) { x.fillStyle = col; x.fillRect(r(a * S), r(b * S), n, n); },
+    };
+  }
+  function featherLines(g, w, col, colD) {
+    // primaries: streaks from the wing root toward the tip region
+    const [a, b, t1, t2, t3] = w;
+    const root = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const tips = [t1, [(t1[0] + t2[0]) / 2, (t1[1] + t2[1]) / 2], t2, [(t2[0] + t3[0]) / 2, (t2[1] + t3[1]) / 2], t3];
+    tips.forEach((tip, k) => {
+      g.line(U.lerp(root[0], tip[0], 0.3), U.lerp(root[1], tip[1], 0.3), U.lerp(root[0], tip[0], 0.95), U.lerp(root[1], tip[1], 0.95), k % 2 ? colD : col);
+    });
+  }
+  const HAWK_S = 1.6, TOAD_S = 1.9;
+  function hawk(frame) {
+    const S = HAWK_S;
+    return cached('hawk' + frame, Math.ceil(64 * S), Math.ceil(46 * S), (x) => {
+      const g = pen(x, S);
+      // far wing
+      g.poly(FAR[frame], HK.dark);
+      featherLines(g, FAR[frame], HK.mid, '#1e3038');
+      // tail fan with bands
+      g.poly([[21, 19], [21, 25], [6, 29], [3, 24], [6, 18]], HK.dark);
+      g.line(5, 21, 18, 21.5, HK.pale); g.line(5, 24, 18, 23.5, HK.mid); g.line(6, 27, 18, 25, HK.pale);
+      // body + belly
+      g.ell(30, 22, 12, 6, HK.mid);
+      g.ell(29, 20, 9, 3, HK.light);
+      g.ell(31, 25, 9, 3, HK.belly);
+      for (let k = 0; k < 6; k++) g.dot(25 + k * 2.2, 25.5 + (k % 2), '#b8b0a0', 2);
+      // saddle cloth for the rider
+      g.poly([[25, 17], [34, 17], [35, 21], [24, 21]], '#b8322a');
+      g.line(24, 21, 35, 21, '#e8c890');
+      // head
+      g.ell(44, 18, 5, 5, HK.mid);
+      g.ell(44, 16, 4, 2, HK.light);
+      g.rect(41, 14, 6, 1.5, HK.pale); g.rect(45, 20, 3, 2, HK.pale);
+      g.rect(39.5, 18, 2, 3, HK.dark);
+      g.poly([[48, 16], [55, 19], [52, 21.5], [48, 21]], HK.beak);
+      g.line(49, 20, 54, 19.5, HK.beakD); g.rect(54, 19, 1, 2, HK.beakD);
+      g.rect(45, 16.6, 2, 1.2, HK.eye); g.dot(45, 16.4, '#ffffff', 2);
+      g.line(43, 15.5, 47.5, 16.2, '#1e3038');
+      // talons
+      g.rect(28.5, 28, 2, 2, HK.beak); g.rect(33, 28, 2, 2, HK.beak);
+      // near wing
+      g.poly(NEAR[frame], HK.light);
+      featherLines(g, NEAR[frame], HK.pale, HK.mid);
+      const n = NEAR[frame];
+      g.line(n[0][0], n[0][1], n[1][0], n[1][1], HK.pale, 2);
+    });
+  }
+
+  // ---- Great Toad (56x48 grid, facing right; anchor = feet at 28,46) ------------------
+  const TD = { dark: '#44602a', mid: '#6a8a3a', light: '#9ab85a', belly: '#ecdca4', vest: '#c83a2a', vestD: '#8a2418' };
+  function toad(frame) {
+    const S = TOAD_S;
+    return cached('toad' + frame, Math.ceil(56 * S), Math.ceil(48 * S), (x) => {
+      const g = pen(x, S);
+      // back legs
+      g.ell(12, 40, 7, 5, TD.dark);
+      // body
+      g.ell(27, 31, 21, 13, TD.mid);
+      g.ell(24, 26, 15, 7, TD.light);
+      // red vest over the back
+      g.poly([[8, 25], [26, 20], [30, 36], [10, 40]], TD.vest);
+      g.rect(10, 38, 18, 2, TD.vestD); g.line(26, 21, 29, 35, TD.vestD, 2);
+      g.ell(18, 30, 3.2, 3.2, '#ffe9a0'); g.rect(17, 28, 2, 4, TD.vestD); g.rect(16, 29.5, 4, 1, TD.vestD);
+      // belly & throat
+      g.ell(38, 37, 11, 7, TD.belly);
+      for (let k = 0; k < 4; k++) g.line(31 + k * 3, 39, 33 + k * 3, 42, '#d8c488');
+      if (frame === 1) { g.ell(42, 36, 7, 6, '#f6ecc4'); g.rect(38, 40, 8, 1, '#e0cc90'); }
+      // warts
+      for (const [wx, wy] of [[33, 22], [38, 25], [29, 18], [42, 28], [35, 29], [24, 34], [16, 22], [44, 24]]) { g.ell(wx, wy, 1.2, 1.2, TD.dark); g.dot(wx - 0.4, wy - 0.6, TD.light, 2); }
+      // eyes
+      for (const [ex, ey] of [[26, 15], [37, 14]]) {
+        g.ell(ex, ey, 5, 5, TD.mid);
+        g.ell(ex + 1, ey - 1, 3.2, 3.2, '#ffd84a');
+        g.rect(ex + 0.6, ey - 3.5, 1, 5, OUTLINE);
+        g.dot(ex - 0.6, ey - 2.6, '#ffffff', 2);
+      }
+      // mouth
+      if (frame === 2) { g.ell(46, 31, 5, 4, '#6a1414'); g.ell(46, 33, 3, 2, '#e05a6a'); }
+      else { g.line(30, 32, 48, 30, '#5a1a1a', 2); g.line(48, 30, 50, 28, '#5a1a1a', 2); }
+      // front legs
+      g.rect(38, 40, 5, 6, TD.mid); g.rect(28, 41, 5, 5, TD.mid);
+      g.rect(37, 45, 8, 2, TD.light); g.rect(27, 45, 8, 2, TD.light);
+      g.rect(40, 45, 1, 2, TD.dark); g.rect(30, 45, 1, 2, TD.dark);
+    });
+  }
+
+  // flip when moving/looking toward the left of the screen
+  function flipFor(ang) { return Math.cos(ang) - Math.sin(ang) < 0; }
+  function blit(ctx, c, sx, sy, ax, ay, flip) {
+    const w = c.lw, h = c.lh;
+    sx = Math.round(sx); sy = Math.round(sy);
+    if (!flip) { ctx.drawImage(c, sx - ax, sy - ay, w, h); return; }
+    ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); ctx.drawImage(c, -ax, sy - ay, w, h); ctx.restore();
+  }
+
+  return { hawk, toad, flipFor, blit, HAWK_S, TOAD_S };
+})();
+
+// Storm Hawk at screen (sx, sy) = where the rider kneels.
+function drawHawk(ctx, sx, sy, ang, flap, dive) {
+  const seq = [0, 1, 2, 1];
+  const frame = dive ? 3 : seq[Math.floor(flap) % 4];
+  const S = SummonArt.HAWK_S;
+  SummonArt.blit(ctx, SummonArt.hawk(frame), sx, sy + 8, Math.round(30 * S), Math.round(20 * S), SummonArt.flipFor(ang));
+}
+
+// ---- Great Toad -------------------------------------------------------------------
+function spawnToad(f, L, x, y) {
+  const dur = L >= 5 ? 9 : 7, R = 2.1;
+  return Combat.hazard({
+    src: f, x, y, r: R, dur, fall: 0.42, landed: false, shotT: 0.7, mouthT: 0, facing: f.facing, sorted: true,
+    update(dt) {
+      if (!this.landed && this.t >= this.fall) {
+        this.landed = true;
+        Combat.explosion(f, x, y, R, 60 * D(L), 'water', { ability: 'summontoad', knock: 7, launch: 220, stun: 0.6, blockDmg: 90 });
+        FX.splash(x, y, 30, 2);
+        FX.dust(x, y, 14);
+        FX.ring(x, y, 0.5, '#9ad4ff', 0.45, 9, 2);
+        W.arena.wetRadius(x, y, 3.2, 8);
+        W.shakeAt(x, y, 8);
+        SFX.playAt('hitHeavy', x, y, 1);
+      }
+      if (!this.landed) return;
+      this.mouthT = Math.max(0, this.mouthT - dt);
+      this.shotT -= dt;
+      if (this.shotT <= 0) {
+        let best = null, bd = 8.5;
+        for (const e of W.fighters) {
+          if (!e.alive || !Combat.enemies(f, e) || e.st.stealth > 0) continue;
+          const d = U.dist(x, y, e.x, e.y);
+          if (d < bd && W.arena.lineClear(x, y, e.x, e.y, 16)) { bd = d; best = e; }
+        }
+        this.shotT = best ? 0.95 : 0.3;
+        if (best) {
+          const lead = bd / 12;
+          const a = Math.atan2(best.y + (best.vy + best.mvy) * lead - y, best.x + (best.vx + best.mvx) * lead - x);
+          this.facing = a; this.mouthT = 0.25;
+          Combat.projectile({
+            src: f, x: x + Math.cos(a) * 1.4, y: y + Math.sin(a) * 1.4, z: 24, vx: Math.cos(a) * 12, vy: Math.sin(a) * 12,
+            kind: 'waterball', element: 'water', size: 5, radius: 0.42, life: 0.85, dmg: 24 * D(L), knock: 3.5, stun: 0.35,
+            status: { wet: 5 }, ability: 'summontoad', clash: 1.4, blockDmg: 25, trail: TRAIL.water,
+            onImpact(p) { FX.splash(p.x, p.y, 8, 1); W.arena.wetRadius(p.x, p.y, 0.9, 5); },
+          });
+          SFX.playAt('water', x, y, 0.6);
+        }
+      }
+      if (Math.random() < dt * 2) FX.add({ x: x + U.rand(-0.8, 0.8), y: y + U.rand(-0.8, 0.8), z: U.rand(10, 30), vz: -20, g: 200, life: 0.5, color: '#8fcfff', size: 1 });
+      if (this.t >= this.fall + dur) {
+        this.dead = true;
+        FX.poof(x, y, 30);
+        SFX.playAt('poof', x, y, 0.9);
+      }
+    },
+    drawGround(ctx, cam) {
+      const [sx, sy] = DF.sp(x, y, 0, cam);
+      const k = this.landed ? 1 : this.t / this.fall;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      PX.ellipse(ctx, sx, sy, 38 * (0.4 + 0.6 * k), 17 * (0.4 + 0.6 * k));
+      if (!this.landed) { ctx.fillStyle = '#9ad4ff'; ctx.globalAlpha = 0.6; PX.ellipseRing(ctx, sx, sy, R * ISO_RX, R * ISO_RY, 1); ctx.globalAlpha = 1; }
+    },
+    depth() { return x + y + 0.3; },
+    drawSorted(ctx, cam) {
+      const z = this.landed ? 0 : (1 - this.t / this.fall) * 170;
+      const [sx, sy] = DF.sp(x, y, z, cam);
+      const squash = this.landed && this.t - this.fall < 0.15 ? 2 : 0;
+      const frame = this.mouthT > 0 ? 2 : Math.floor(this.t * 1.5) % 4 === 0 ? 1 : 0;
+      const end = this.fall + dur - this.t;
+      if (end < 0.6 && Math.floor(this.t * 12) % 2) ctx.globalAlpha = 0.5;
+      const S = SummonArt.TOAD_S;
+      SummonArt.blit(ctx, SummonArt.toad(frame), sx, sy + squash + 2, Math.round(28 * S), Math.round(46 * S), SummonArt.flipFor(this.facing));
+      ctx.globalAlpha = 1;
+    },
+  });
+}
+
+// ---- Giant Serpent ------------------------------------------------------------------
+function spawnSerpent(f, L, ang) {
+  const len = 7.5 * SZ(f, L), speed = 15, dx = Math.cos(ang), dy = Math.sin(ang);
+  const A = W.arena;
+  return Combat.hazard({
+    src: f, x: f.x + dx * 0.6, y: f.y + dy * 0.6, hx: f.x + dx * 0.6, hy: f.y + dy * 0.6, dist: 0, hist: [], hitSet: new Set(),
+    phase: 'go', endT: 0, blockAcc: 0, sorted: true,
+    update(dt) {
+      if (this.phase === 'go') {
+        const step = speed * dt;
+        this.dist += step;
+        this.hx = U.clamp(this.hx + dx * step, 2.6, A.w - 2.6); this.hy = U.clamp(this.hy + dy * step, 2.6, A.h - 2.6);
+        this.x = this.hx; this.y = this.hy;
+        this.hist.push([this.hx, this.hy]);
+        if (this.hist.length > 30) this.hist.shift();
+        for (const e of W.fighters) {
+          if (!e.alive || this.hitSet.has(e) || !Combat.enemies(f, e) || e.z > 50) continue;
+          if (U.dist(this.hx, this.hy, e.x, e.y) > 0.85 + e.radius) continue;
+          this.hitSet.add(e);
+          Combat.hit(e, { src: f, dmg: 55 * D(L), element: 'earth', kind: 'aoe', knock: 5, launch: 260, stun: 0.7, dirX: dx, dirY: dy, ability: 'summonsnake', sx: this.hx - dx, sy: this.hy - dy, noParry: true });
+        }
+        this.blockAcc += dt;
+        if (this.blockAcc > 0.06) { this.blockAcc = 0; A.damageRadius(this.hx, this.hy, 0.9, 45, 'earth', f); }
+        if (Math.random() < 0.8) FX.debris(this.hx, this.hy, 2, ['#8a5a2c', '#c08a4a', '#5e3b1a'], 2, 0.6);
+        if (Math.random() < 0.4) A.addStain(this.hx, this.hy, 0.35, 'crater');
+        if (this.dist >= len) {
+          this.phase = 'bite'; this.endT = this.t;
+          Combat.explosion(f, this.hx + dx * 0.6, this.hy + dy * 0.6, 1.7, 40 * D(L), 'earth', { ability: 'summonsnake', knock: 6, launch: 180, stun: 0.5 });
+          SFX.playAt('hitHeavy', this.hx, this.hy, 1);
+        }
+      } else if (this.t - this.endT > 0.7) {
+        this.dead = true;
+        FX.dust(this.hx, this.hy, 12);
+      }
+    },
+    depth() { return this.hx + this.hy + 0.2; },
+    drawSorted(ctx, cam) {
+      const H = this.hist;
+      if (H.length < 2) return;
+      const sink = this.phase === 'bite' ? Math.min(1, (this.t - this.endT) / 0.7) : 0;
+      const n = H.length;
+      // body: tail (oldest) to head
+      for (let i = 0; i < n; i += 1) {
+        const u = i / (n - 1);
+        // slither: the body weaves side to side around its path
+        const wv = Math.sin(i * 0.45 - this.t * 14) * 0.45 * (1 - u * 0.6);
+        const px = H[i][0] - dy * wv, py = H[i][1] + dx * wv;
+        const z = (4 + u * 14 + Math.sin(i * 0.7 + this.t * 16) * 3) * (1 - sink) - sink * 10;
+        const r = 2.5 + u * 7.5;
+        const [sx, sy] = DF.sp(px, py, z, cam);
+        ctx.fillStyle = OUTLINE_COL; PX.circle(ctx, sx, sy, r + 1);
+        ctx.fillStyle = i % 3 === 0 ? '#3a2458' : '#6a3a8a'; PX.circle(ctx, sx, sy, r);
+        ctx.fillStyle = '#9a6ab8'; PX.circle(ctx, sx - 1, sy - Math.round(r * 0.4), Math.max(1, r - 3));
+        ctx.fillStyle = '#e0d0a0'; ctx.fillRect(Math.round(sx - r * 0.5), Math.round(sy + r * 0.4), Math.max(1, Math.round(r)), 1);
+      }
+      // head
+      const [hx, hy] = H[n - 1];
+      const hz = 26 * (1 - sink) - sink * 14;
+      const [sx, sy] = DF.sp(hx + dx * 0.25, hy + dy * 0.25, hz, cam);
+      const sdx = (dx - dy), sdy = (dx + dy) * 0.5;
+      const l = Math.hypot(sdx, sdy) || 1, ux = sdx / l, uy = sdy / l;
+      const open = this.phase === 'bite' ? Math.max(0, 1 - (this.t - this.endT) * 4) * 5 + 1 : 2 + Math.sin(this.t * 20);
+      ctx.fillStyle = OUTLINE_COL; PX.ellipse(ctx, sx, sy, 15, 10);
+      ctx.fillStyle = '#6a3a8a'; PX.ellipse(ctx, sx, sy, 14, 9);
+      ctx.fillStyle = '#9a6ab8'; PX.ellipse(ctx, sx - 1, sy - 3, 9, 4);
+      ctx.fillStyle = '#3a2458'; for (let k = -1; k <= 1; k++) ctx.fillRect(Math.round(sx - ux * 6 + k * 4), Math.round(sy - uy * 6 - 1), 2, 2);
+      // jaws
+      const jx = sx + ux * 13, jy = sy + uy * 13 + 1, op = open * 1.5;
+      ctx.fillStyle = OUTLINE_COL; PX.ellipse(ctx, jx, jy, 7, Math.max(2, op + 1));
+      ctx.fillStyle = '#b02a3a'; PX.ellipse(ctx, jx, jy, 6, Math.max(1, op));
+      ctx.fillStyle = '#e05a6a'; PX.ellipse(ctx, jx, jy + 1, 3, Math.max(1, op * 0.5));
+      ctx.fillStyle = '#ffffff';
+      for (const fx of [-4, 3]) { ctx.fillRect(Math.round(jx + fx), Math.round(jy - op), 2, 3); ctx.fillRect(Math.round(jx + fx), Math.round(jy + op - 2), 2, 3); }
+      // eyes
+      for (const s of [-1, 1]) {
+        const ex = Math.round(sx + ux * 5 + s * uy * 5), ey = Math.round(sy + uy * 5 - s * ux * 3 - 4);
+        ctx.fillStyle = OUTLINE_COL; ctx.fillRect(ex - 1, ey - 1, 5, 4);
+        ctx.fillStyle = '#ffe14a'; ctx.fillRect(ex, ey, 3, 2);
+        ctx.fillStyle = OUTLINE_COL; ctx.fillRect(ex + 1, ey, 1, 2);
+      }
+    },
+  });
+}
+const OUTLINE_COL = '#120a18';
+
+// ---- the jutsu -----------------------------------------------------------------------
+defJutsu({
+  id: 'summonhawk', name: 'Summoning: Storm Hawk', element: 'wind', cost: 32, cd: 24, cast: 0.4, recover: 0, icon: 'bird', pose: 'raise',
+  desc: 'Summon a giant hawk and ride it. Fly over everything and bomb the ground below. Heavy dives and drops you off.',
+  mastery: 'Lv5: Bigger bombs and a sturdier hawk.', ai: { min: 0, max: 9, kind: 'summon' },
+  use(f, L) {
+    f.mountUp({ t: 8 + L * 0.5, shield: 110 + 20 * L, maxShield: 110 + 20 * L, dmg: 26, bombR: L >= 5 ? 1.7 : 1.3 });
+  },
+});
+
+defJutsu({
+  id: 'summontoad', name: 'Summoning: Great Toad', element: 'water', cost: 30, cd: 20, cast: 0.45, icon: 'toad', pose: 'slam',
+  desc: 'A giant toad drops from the sky, crushing the area, then spits water shots at nearby enemies.',
+  mastery: 'Lv5: The toad stays longer.', ai: { min: 1, max: 7, kind: 'aoe' },
+  use(f, L) {
+    const p = f.aimPoint(6, 1.8);
+    spawnToad(f, L, p.x, p.y);
+    FX.poof(p.x, p.y, 8);
+    SFX.playAt('poof', f.x, f.y, 0.8);
+  },
+});
+
+defJutsu({
+  id: 'summonsnake', name: 'Summoning: Giant Serpent', element: 'earth', cost: 26, cd: 13, cast: 0.3, icon: 'snake', pose: 'slam',
+  desc: 'A huge serpent bursts from the ground and tears forward, launching everyone in its path, then bites.',
+  mastery: 'Lv5: A longer, heavier serpent.', ai: { min: 1.5, max: 7, kind: 'proj' },
+  use(f, L, aim) {
+    spawnSerpent(f, L, aim.ang);
+    FX.debris(f.x + Math.cos(aim.ang) * 0.6, f.y + Math.sin(aim.ang) * 0.6, 4, ['#8a5a2c', '#c08a4a'], 10, 1);
+    SFX.playAt('earth', f.x, f.y, 0.9);
+  },
+});
 
 </script>
 <script>
@@ -6914,19 +7603,19 @@ const PRESETS = [
     jutsu: ['spiral', 'rotation', 'phoenix', 'flashstep'], awakening: 'gates', ultimate: 'cannon' },
   { id: 'p_haru', name: 'Haru Kazemaki', affinity: 'wind',
     look: { skin: '#ffe0bd', hair: '#ffd23f', hairStyle: 'spiky', eyes: '#2e6bd6', outfit: '#ff7a1a', pants: '#2d3550', cloth: '#2a4fd6', headband: 'forehead', extra: 'marks' },
-    jutsu: ['clones', 'spiral', 'windblade', 'windrang'], awakening: 'beast', ultimate: 'thousand' },
+    jutsu: ['clones', 'spiral', 'windrang', 'summonhawk'], awakening: 'beast', ultimate: 'thousand' },
   { id: 'p_yuki', name: 'Yuki Shirogane', affinity: 'water',
     look: { skin: '#f3d2c1', hair: '#b0b8c8', hairStyle: 'short', eyes: '#6ec6ff', outfit: '#3a5fd6', pants: '#d8d0c0', cloth: '#d8d0c0', headband: 'arm', extra: 'none' },
-    jutsu: ['waterbullets', 'tidalwave', 'vacuumshots', 'mist'], awakening: 'sage', ultimate: 'tsunami' },
+    jutsu: ['waterbullets', 'tidalwave', 'summontoad', 'mist'], awakening: 'sage', ultimate: 'tsunami' },
   { id: 'p_daichi', name: 'Daichi Morikawa', affinity: 'earth',
     look: { skin: '#e8b07f', hair: '#5a3a22', hairStyle: 'wild', eyes: '#2a2a38', outfit: '#3f6b3a', pants: '#2d4a3a', cloth: '#8a6a3a', headband: 'forehead', extra: 'cloak' },
-    jutsu: ['tectonic', 'mudswamp', 'flamestream', 'rockspikes'], awakening: 'gates', ultimate: 'meteor' },
+    jutsu: ['tectonic', 'mudswamp', 'summonsnake', 'rockspikes'], awakening: 'gates', ultimate: 'meteor' },
   { id: 'p_akane', name: 'Akane Hoshino', affinity: 'lightning',
     look: { skin: '#ffe0bd', hair: '#7a4fd6', hairStyle: 'pony', eyes: '#e0a020', outfit: '#6a2d8a', pants: '#1e1e26', cloth: '#6a2d8a', headband: 'forehead', extra: 'none' },
     jutsu: ['larmor', 'discharge', 'lance', 'chain'], awakening: 'spirit', ultimate: 'kirin' },
   { id: 'p_sora', name: 'Sora Tenma', affinity: 'fire',
     look: { skin: '#f7c99b', hair: '#141414', hairStyle: 'long', eyes: '#c23b3b', outfit: '#2a2a36', pants: '#1e1e26', cloth: '#b8322a', headband: 'forehead', extra: 'cloak' },
-    jutsu: ['fireball', 'phoenix', 'clones', 'shadowbind'], awakening: 'crimson', ultimate: 'moon' },
+    jutsu: ['fireball', 'phoenix', 'summonsnake', 'shadowbind'], awakening: 'crimson', ultimate: 'moon' },
 ];
 
 const Store = {
@@ -7090,6 +7779,7 @@ class AIController {
     if (t) this.aimAt(o, t, 30);
     else { o.ax = f.x + Math.cos(f.facing) * 2; o.ay = f.y + Math.sin(f.facing) * 2; }
 
+    if (f.mount) { this.ride(f, dt, o, t); return o; }
     this.defend(f, dt, o);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
@@ -7099,6 +7789,22 @@ class AIController {
     this.steer(f, dt, o);
     if (this.dashDirT > 0) { this.dashDirT -= dt; o.mx = this.dashDir[0]; o.my = this.dashDir[1]; }
     return o;
+  }
+
+  // Riding a summon: circle the target at bombing range and rain bombs.
+  ride(f, dt, o, t) {
+    o.lightHeld = false;
+    if (!t) { o.mx = Math.cos(this.time * 0.7); o.my = Math.sin(this.time * 0.7); return; }
+    const dist = U.dist(f.x, f.y, t.x, t.y);
+    this.aimAt(o, t, 8);
+    if (dist < 6.5) o.lightHeld = Math.random() < 0.9;
+    const [nx, ny] = U.norm(t.x - f.x, t.y - f.y);
+    const radial = dist > 4.8 ? 1 : dist < 3.2 ? -0.8 : 0;
+    this.strafeT -= dt;
+    if (this.strafeT <= 0) { this.strafeT = U.rand(1, 2.5); if (Math.random() < 0.5) this.strafe *= -1; }
+    o.mx = nx * radial - ny * this.strafe * 0.8; o.my = ny * radial + nx * this.strafe * 0.8;
+    const m = f.mount;
+    if ((m.t < 1.2 || m.shield < m.maxShield * 0.2) && dist < 5 && Math.random() < dt * 3) o.heavyPressed = true;
   }
 
   // ---- defence: blocks, parries, dodges, substitution --------------------------
@@ -7435,7 +8141,7 @@ class PlayerController {
   constructor(f) {
     this.f = f;
     this.lmbHold = 0;
-    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false, dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
+    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, lightHeld: false, heavy: false, heavyPressed: false, jump: false, dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
   }
 
   validLock(f, t) {
@@ -7504,12 +8210,14 @@ class PlayerController {
     if (f.lock) { o.ax = f.lock.x; o.ay = f.lock.y; }
 
     // hold left mouse for a heavy (tap = light combo)
-    const lmb = Input.isDown('light') && !Input.usingPad();
+    // (not while riding a summon: holding fire drops a stream of bombs instead)
+    const lmb = Input.isDown('light') && !Input.usingPad() && !f.mount;
     const prevHold = this.lmbHold;
     this.lmbHold = lmb ? this.lmbHold + dt : 0;
     const holdHeavy = this.lmbHold >= 0.26;
 
     o.light = Input.wasPressed('light');
+    o.lightHeld = Input.isDown('light');
     o.heavyPressed = Input.wasPressed('heavy') || (holdHeavy && prevHold < 0.26);
     o.heavy = Input.isDown('heavy') || holdHeavy;
     o.jump = Input.wasPressed('jump');
@@ -8032,6 +8740,24 @@ const Icons = (() => {
     shuriken(x, c) { for (const [ox, oy] of [[7, 8], [16, 14]]) { x.fillStyle = c.light; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; PX.line(x, ox, oy, ox + Math.cos(a) * 5, oy + Math.sin(a) * 5, 2); } x.fillStyle = c.dark; x.fillRect(ox - 1, oy - 1, 2, 2); } },
     shotgun(x, c) { x.fillStyle = c.dark; x.fillRect(2, 11, 6, 3); for (let k = 0; k < 6; k++) { const a = -0.5 + k * 0.2; x.fillStyle = k % 2 ? c.main : c.light; x.fillRect(Math.round(10 + Math.cos(a) * (6 + k % 3 * 3)), Math.round(12 + Math.sin(a) * (6 + k % 3 * 3)), 3, 2); } },
     shark(x, c) { x.fillStyle = c.main; PX.ellipse(x, 11, 13, 8, 4); x.fillRect(9, 5, 3, 5); x.fillRect(2, 10, 3, 6); x.fillStyle = c.light; PX.ellipse(x, 12, 15, 6, 2); x.fillStyle = '#fff'; for (let k = 0; k < 3; k++) x.fillRect(15 + k * 2, 14, 1, 2); x.fillStyle = '#120a18'; x.fillRect(16, 11, 1, 1); },
+    bird(x, c) {
+      x.fillStyle = c.dark; for (let k = 0; k < 9; k++) { x.fillRect(3 + k, 6 + Math.abs(k - 4), 2, 3); x.fillRect(12 + k, 10 - Math.abs(k - 4) + (k > 4 ? 0 : 0), 2, 3); }
+      x.fillStyle = c.main; PX.ellipse(x, 12, 13, 5, 3); x.fillStyle = c.light; PX.ellipse(x, 12, 14, 3, 1);
+      x.fillStyle = '#ffc83a'; x.fillRect(17, 11, 3, 2); x.fillStyle = '#fff'; x.fillRect(15, 11, 1, 1);
+      x.fillStyle = c.dark; x.fillRect(5, 13, 3, 4); x.fillRect(8, 15, 2, 3);
+    },
+    toad(x, c) {
+      x.fillStyle = '#4a6a28'; PX.ellipse(x, 12, 15, 9, 6); x.fillStyle = '#7a9a3a'; PX.ellipse(x, 12, 14, 8, 5);
+      x.fillStyle = '#e8d8a0'; PX.ellipse(x, 13, 18, 5, 2);
+      for (const ex of [8, 16]) { x.fillStyle = '#4a6a28'; PX.circle(x, ex, 8, 3); x.fillStyle = '#ffd84a'; PX.circle(x, ex, 8, 2); x.fillStyle = '#120a18'; x.fillRect(ex, 7, 1, 3); }
+      x.fillStyle = '#8a2a2a'; x.fillRect(7, 15, 10, 1); x.fillStyle = c.light; x.fillRect(3, 4, 2, 2); x.fillRect(20, 3, 2, 2);
+    },
+    snake(x, c) {
+      for (let k = 0; k < 14; k++) { const t = k / 13; x.fillStyle = k % 3 ? c.main : c.dark; PX.circle(x, 3 + t * 14, 19 - Math.sin(t * 5) * 4 - t * 8, 3 - t); }
+      x.fillStyle = c.dark; PX.ellipse(x, 18, 6, 4, 3); x.fillStyle = c.main; PX.ellipse(x, 18, 5, 3, 2);
+      x.fillStyle = '#ffe14a'; x.fillRect(19, 4, 2, 1); x.fillStyle = '#fff'; x.fillRect(21, 8, 1, 2); x.fillRect(19, 8, 1, 2);
+      x.fillStyle = '#ff4a5a'; x.fillRect(22, 7, 2, 1);
+    },
     star(x, c) { x.fillStyle = c.light; for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; PX.line(x, 12, 12, 12 + Math.cos(a) * (k % 2 ? 5 : 10), 12 + Math.sin(a) * (k % 2 ? 5 : 10), 2); } x.fillStyle = '#fff'; PX.circle(x, 12, 12, 2); },
     eye(x, c) { x.fillStyle = '#fff'; PX.ellipse(x, 12, 12, 9, 5); x.fillStyle = c.main; PX.circle(x, 12, 12, 4); x.fillStyle = c.dark; PX.circle(x, 12, 12, 2); x.fillStyle = c.light; x.fillRect(10, 10, 1, 1); },
   };
@@ -8170,8 +8896,15 @@ const Render = (() => {
     if (lying) pose = 'hurt';
     const view = f.view, flip = f.flip;
     const cv = Sprites.get(look, pose, frame, view);
-    let sx = Math.round((f.x - f.y) * HALF_W - cam.x), sy = Math.round((f.x + f.y) * HALF_H - f.z - cam.y);
+    let sx = Math.round((f.x - f.y) * HALF_W - cam.x), sy = Math.round((f.x + f.y) * HALF_H - f.visZ() - cam.y);
     if (f.freeze > 0 && (f.state === 'hitstun' || f.state === 'air')) sx += (Math.floor(f.time * 60) % 2) ? 1 : -1;
+    if (f.mount) {
+      const m = f.mount;
+      if (f.flash > 0 && Math.floor(f.time * 30) % 2) ctx.globalAlpha = 0.6;
+      if (m.t < 1.5 && Math.floor(f.time * 10) % 2) ctx.globalAlpha = 0.55;
+      drawHawk(ctx, sx, sy, f.facing, m.flap, false);
+      ctx.globalAlpha = 1;
+    }
 
     let alpha = 1;
     const enemyOfViewer = viewer && Combat.enemies(viewer, f);
@@ -8242,33 +8975,42 @@ const Render = (() => {
   function drawOverhead(ctx, f, cam, viewer) {
     if (!f.alive || f.isClone) return;
     if (f.st.stealth > 0 && viewer && Combat.enemies(viewer, f)) return;
-    const sx = Math.round((f.x - f.y) * HALF_W - cam.x), sy = Math.round((f.x + f.y) * HALF_H - f.z - cam.y) - 38;
-    if (sx < -30 || sx > cam.w + 30 || sy < -20 || sy > cam.h + 40) return;
-    const w = 22;
-    ctx.fillStyle = '#120a18'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 5);
-    ctx.fillStyle = '#3a2a30'; ctx.fillRect(sx - w / 2, sy, w, 3);
+    const vz = f.visZ ? f.visZ() : f.z;
+    const wx = Math.round((f.x - f.y) * HALF_W - cam.x), wy = Math.round((f.x + f.y) * HALF_H - vz - cam.y) - 38;
+    if (wx < -30 || wx > cam.w + 30 || wy < -20 || wy > cam.h + 40) return;
+    // drawn in canvas pixels (finer than world pixels) to keep bars and names small
+    ctx.setTransform(1, 0, 0, 1, wx * HIRES, wy * HIRES);
+    const sx = 0, sy = 0;
+    const w = 30;
+    ctx.fillStyle = '#120a18'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 8);
+    ctx.fillStyle = '#3a2a30'; ctx.fillRect(sx - w / 2, sy, w, 4);
     const hp = U.clamp(f.hp / f.maxHp, 0, 1);
-    ctx.fillStyle = hp < 0.3 ? '#ff4a4a' : f.teamColor; ctx.fillRect(sx - w / 2, sy, Math.round(w * hp), 3);
-    ctx.fillStyle = '#6fa8ff'; ctx.fillRect(sx - w / 2, sy + 3, Math.round(w * f.chakra / f.maxChakra), 1);
-    Font.draw(ctx, String(f.level), sx - w / 2 - 3, sy - 2, '#ffe9a0', { align: 'right', outline: '#120a18' });
+    ctx.fillStyle = hp < 0.3 ? '#ff4a4a' : f.teamColor; ctx.fillRect(sx - w / 2, sy, Math.round(w * hp), 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(sx - w / 2, sy, Math.round(w * hp), 1);
+    ctx.fillStyle = '#6fa8ff'; ctx.fillRect(sx - w / 2, sy + 5, Math.round(w * f.chakra / f.maxChakra), 1);
+    Font.draw(ctx, String(f.level), sx - w / 2 - 3, sy - 1, '#ffe9a0', { align: 'right', outline: '#120a18' });
     if (f === viewer) {
       const b = Math.floor(f.time * 3) % 2;
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(sx - 2, sy - 7 + b, 5, 1); ctx.fillRect(sx - 1, sy - 6 + b, 3, 1); ctx.fillRect(sx, sy - 5 + b, 1, 1);
+      ctx.fillRect(sx - 3, sy - 9 + b, 7, 1); ctx.fillRect(sx - 2, sy - 8 + b, 5, 1); ctx.fillRect(sx - 1, sy - 7 + b, 3, 1); ctx.fillRect(sx, sy - 6 + b, 1, 1);
     } else if (!viewer || U.dist(viewer.x, viewer.y, f.x, f.y) < 11) {
       Font.draw(ctx, f.name.split(' ')[0].toUpperCase(), sx, sy - 10, f.teamColor, { align: 'center', outline: '#120a18' });
     }
     if (f.awakened) {
       const k = f.awakened.t / f.awakened.def.dur;
-      ctx.fillStyle = f.awakened.def.colors[1]; ctx.fillRect(sx - w / 2, sy + 5, Math.round(w * k), 1);
+      ctx.fillStyle = f.awakened.def.colors[1]; ctx.fillRect(sx - w / 2, sy + 7, Math.round(w * k), 1);
+    }
+    if (f.mount && f.mount.shield > 0) {
+      ctx.fillStyle = '#e8f0ff'; ctx.fillRect(sx - w / 2, sy + 9, Math.round(w * f.mount.shield / f.mount.maxShield), 1);
     }
     if (f.state === 'stun' || f.st.genjutsu > 0) {
       for (let k = 0; k < 3; k++) {
         const a = f.time * 5 + k * 2.1;
         ctx.fillStyle = f.st.genjutsu > 0 ? '#ff5050' : '#ffe14a';
-        ctx.fillRect(Math.round(sx + Math.cos(a) * 7), Math.round(sy + 10 + Math.sin(a) * 2), 2, 2);
+        ctx.fillRect(Math.round(sx + Math.cos(a) * 12), Math.round(sy + 12 + Math.sin(a) * 3), 3, 3);
       }
     }
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
   }
 
   // ---- blocks -----------------------------------------------------------------------
@@ -8376,7 +9118,7 @@ const Render = (() => {
       if (f.st.stealth > 0 && viewer && Combat.enemies(viewer, f)) continue;
       const [sx, sy] = DF.sp(f.x, f.y, 0, cam);
       if (sx < -30 || sx > VW + 30 || sy < -10 || sy > VH + 40) continue;
-      const s = Math.max(0.5, 1 - f.z / 120);
+      const s = f.mount ? 3.4 : Math.max(0.5, 1 - f.z / 120);
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       PX.ellipse(ctx, sx, sy, 7 * s, 3.5 * s);
       if (!f.dead && !f.isClone) {
@@ -8399,8 +9141,10 @@ const Render = (() => {
       if (tsx < -60 || tsx > VW + 60 || tsy < -30 || tsy > VH + 110) continue;
       items.push({ d: i + j + 1, b });
     }
-    for (const f of w.fighters) if (!f.removed) items.push({ d: f.x + f.y + 0.01, f });
+    // riders fly above props, so they sort as if a couple of tiles closer to the camera
+    for (const f of w.fighters) if (!f.removed) items.push({ d: f.x + f.y + 0.01 + (f.mount ? 2.5 : 0), f });
     for (const p of w.projectiles) items.push({ d: p.x + p.y + 0.02, p });
+    for (const h of w.hazards) if (h.drawSorted && !h.dead) items.push({ d: h.depth ? h.depth() : h.x + h.y, h });
     items.sort((a, b) => a.d - b.d);
 
     // occlusion: fade props that hide the watched fighter
@@ -8413,6 +9157,7 @@ const Render = (() => {
       if (it.b) drawBlock(ctx, it.b, A, cam, dt, fade && it.d > fade.d + 0.3 ? fade : null);
       else if (it.f) drawFighter(ctx, it.f, cam, viewer);
       else if (it.p) { const p = it.p; if (p.draw) p.draw(ctx, p, cam); else (PROJ_DRAW[p.kind] || PROJ_DRAW.orb)(ctx, p, cam); }
+      else if (it.h) it.h.drawSorted(ctx, cam);
     }
 
     for (const h of w.hazards) if (h.draw) h.draw(ctx, cam);
@@ -8439,7 +9184,7 @@ const Render = (() => {
   function drawLockMarker(w, cam) {
     const p = w.player, t = p && p.lock;
     if (!t || !t.alive || !p.alive) return;
-    const [sx, sy] = DF.sp(t.x, t.y, t.z, cam);
+    const [sx, sy] = DF.sp(t.x, t.y, t.visZ(), cam);
     const cy = sy - 15, r = 13 + Math.sin(w.realTime * 6) * 1.5;
     const a0 = w.realTime * 2;
     ctx.fillStyle = '#120a18';
@@ -8574,8 +9319,14 @@ const HUD = (() => {
     ctx.fillStyle = '#3a2e4a'; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
   }
 
+  // The HUD is drawn in canvas pixels (half the size of world pixels) so it
+  // stays compact; on small windows it scales back up to stay readable.
+  let hudK = 1;
   function draw(ctx, w) {
-    const VW = Render.VW, VH = Render.VH;
+    hudK = Math.max(1, Math.round(2 * HIRES / Render.scale));
+    ctx.setTransform(hudK, 0, 0, hudK, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    const VW = Math.floor(Render.canvas.width / hudK), VH = Math.floor(Render.canvas.height / hudK);
     const f = w.player || w.camTarget;
     if (!f) return;
     if (w.player && w.player.alive && w.player.hp < w.player.maxHp * 0.25) {
@@ -8590,9 +9341,17 @@ const HUD = (() => {
     if (!w.demo) {
       drawStatus(ctx, f, w);
       drawSlots(ctx, f, VW, VH, w);
+      if (f.mount && f === w.player) {
+        const m = f.mount, bw = 120, x = Math.round(VW / 2 - bw / 2), y = VH - 92;
+        const pad = Input.usingPad(), sony = Input.pad.sony;
+        Font.draw(ctx, 'STORM HAWK ' + Math.ceil(m.t) + 'S', VW / 2, y - 10, '#9af0c8', { align: 'center', outline: OUT });
+        bar(ctx, x, y, bw, 3, m.shield / m.maxShield, '#e8f0ff');
+        const keys = pad ? (sony ? ['SQUARE', 'TRIANGLE', 'CROSS'] : ['X', 'Y', 'A']) : ['LMB', 'K', 'SPACE'];
+        Font.draw(ctx, keys[0] + ' BOMB  ' + keys[1] + ' DIVE  ' + keys[2] + ' HOP OFF', VW / 2, y + 6, '#e8dcc0', { align: 'center', outline: OUT });
+      }
     }
     drawMatchInfo(ctx, w, VW);
-    drawTargetFrame(ctx, w, VW);
+    drawTargetFrame(ctx, w, VW, VH);
     drawMinimap(ctx, w, VW);
     drawKillfeed(ctx, w, VW);
     drawCombo(ctx, f, VH);
@@ -8649,11 +9408,11 @@ const HUD = (() => {
   }
 
   // Health bar of the locked-on enemy, top centre.
-  function drawTargetFrame(ctx, w, VW) {
+  function drawTargetFrame(ctx, w, VW, VH) {
     const p = w.player, t = p && p.lock;
     if (!t || !t.alive) return;
     const E = ELEMENTS[t.affinity] || ELEMENTS.shinobi;
-    const bw = 120, x = Math.round(VW / 2 - bw / 2), y = Render.VH - 70;
+    const bw = 120, x = Math.round(VW / 2 - bw / 2), y = VH - 70;
     panel(ctx, x - 4, y - 3, bw + 8, 21);
     Font.draw(ctx, t.name.toUpperCase(), x, y, t.teamColor, { outline: OUT });
     Font.draw(ctx, 'LV' + t.level, x + bw, y, '#ffe14a', { align: 'right', outline: OUT });
@@ -8765,7 +9524,7 @@ const HUD = (() => {
     }
   }
 
-  const MQ = 0.75; // minimap pixels per tile step
+  const MQ = 1.1; // minimap pixels per tile step
   function buildMini(w) {
     const A = w.arena;
     const Wd = Math.ceil((A.w + A.h) * MQ), Hd = Math.ceil((A.w + A.h) * MQ / 2);
@@ -8792,6 +9551,7 @@ const HUD = (() => {
     const mx = VW - mini.width - 6, my = 5;
     panel(ctx, mx - 3, my - 2, mini.width + 6, mini.height + 5);
     ctx.drawImage(mini, mx, my);
+    feedY = my + mini.height + 8;
     const toMini = (x, y) => [mx + 1 + Math.round((x - y + A.h) * MQ), my + 1 + Math.round((x + y) * MQ / 2)];
     // camera frame
     const c = w.cam;
@@ -8810,8 +9570,9 @@ const HUD = (() => {
     }
   }
 
+  let feedY = 72;
   function drawKillfeed(ctx, w, VW) {
-    let y = 72;
+    let y = feedY;
     for (const k of w.killfeed) {
       const age = w.realTime - k.t;
       if (age > 6) continue;
@@ -9220,7 +9981,7 @@ const UI = (() => {
     if (!existing || existing.id.startsWith('p_')) { ch.id = Roster.newId(); if (existing) ch.name = existing.name + ' II'; }
     let tab = 'look', selSlot = 0, filter = 'all';
     let view = 'F', flip = false, poseIdx = 0, facingIdx = 0;
-    const POSE_CYCLE = [['idle', 2], ['run', 8], ['jump', 1], ['airkick', 1], ['lunge', 1], ['spin', 2], ['jab', 1], ['cross', 1], ['kick', 1], ['uppercut', 1], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
+    const POSE_CYCLE = [['idle', 2], ['run', 8], ['jump', 1], ['airkick', 3], ['lunge', 3], ['spin', 2], ['jab', 3], ['cross', 3], ['kick', 3], ['uppercut', 3], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
 
     const prev = U.makeCanvas(SPR_W * 5, SPR_H * 5);
     prev.className = 'px';
@@ -9446,7 +10207,12 @@ const UI = (() => {
           h('p', { text: 'Caught in a combo? Press SPACE to SUBSTITUTE: you leave a log behind and reappear behind your attacker. The gauge holds two uses and refills over time. When knocked down, press SPACE to tech-roll.' })),
         h('section', null, h('h3', { text: 'ELEMENTS' }),
           h('div', { class: 'wheel' }, ...['fire', 'wind', 'lightning', 'earth', 'water', 'fire'].map((e, i, a) => [h('span', { style: `color:${ELEMENTS[e].color}`, text: ELEMENTS[e].short }), i < a.length - 1 ? h('span', { class: 'note', text: ' > ' }) : null]).flat()),
-          h('p', { text: 'Advantaged elements deal +20% to that affinity and win jutsu clashes. Fire ignites grass and wood and spreads; water soaks targets and puts fires out; soaked targets take +35% lightning damage and lightning arcs through puddles and rivers; wind fans flames and hurls enemy fire back; earth raises walls and cracks the ground.' })),
+          h('p', { text: 'Advantaged elements deal +20% to that affinity and win jutsu clashes. Fire ignites grass and wood and spreads; water soaks targets and puts fires out; soaked targets take +35% lightning damage and lightning arcs through puddles and rivers; wind fans flames and hurls enemy fire back; earth raises walls and cracks the ground.' }),
+          h('p', { text: 'WATER BOOST: cast a water jutsu while standing in or next to water (rivers, lakes, soaked ground) and it comes out 35% bigger and 30% stronger. Water-affinity shinobi also regain chakra faster near water.' })),
+        h('section', null, h('h3', { text: 'SUMMONING' }),
+          h('p', { text: 'STORM HAWK: ride a giant hawk over trees, walls and rivers. Attack (or hold it) to drop bombs where you aim, heavy to dive-bomb and jump off, jump to hop off. The hawk soaks hits until its shield breaks.' }),
+          h('p', { text: 'GREAT TOAD: drops from the sky onto the aim point, then spits water shots at nearby enemies for several seconds.' }),
+          h('p', { text: 'GIANT SERPENT: bursts out of the ground and tears forward, launching everything in its path and smashing props, then bites.' })),
         h('section', null, h('h3', { text: 'AWAKENING & ULTIMATE' }),
           h('p', { text: 'Two meters fill as you fight. AWAKEN (T) to transform for a while - Crimson Eye, Sage Mode, Beast Cloak, Eight Gates, Spirit Armor or Cursed Seal. ULTIMATE (G) unleashes your signature technique - meteors, tsunamis, lightning dragons and more. You are invulnerable while it winds up.' })),
         h('section', null, h('h3', { text: 'LEVELING UP' }),

@@ -297,7 +297,7 @@ const UI = (() => {
     if (!existing || existing.id.startsWith('p_')) { ch.id = Roster.newId(); if (existing) ch.name = existing.name + ' II'; }
     let tab = 'look', selSlot = 0, filter = 'all';
     let view = 'F', flip = false, poseIdx = 0, facingIdx = 0;
-    const POSE_CYCLE = [['idle', 2], ['run', 8], ['jump', 1], ['airkick', 1], ['lunge', 1], ['spin', 2], ['jab', 1], ['cross', 1], ['kick', 1], ['uppercut', 1], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
+    const POSE_CYCLE = [['idle', 2], ['run', 8], ['jump', 1], ['airkick', 3], ['lunge', 3], ['spin', 2], ['jab', 3], ['cross', 3], ['kick', 3], ['uppercut', 3], ['seal', 2], ['release', 1], ['block', 1], ['charge', 2], ['raise', 1], ['victory', 1]];
 
     const prev = U.makeCanvas(SPR_W * 5, SPR_H * 5);
     prev.className = 'px';
@@ -523,7 +523,12 @@ const UI = (() => {
           h('p', { text: 'Caught in a combo? Press SPACE to SUBSTITUTE: you leave a log behind and reappear behind your attacker. The gauge holds two uses and refills over time. When knocked down, press SPACE to tech-roll.' })),
         h('section', null, h('h3', { text: 'ELEMENTS' }),
           h('div', { class: 'wheel' }, ...['fire', 'wind', 'lightning', 'earth', 'water', 'fire'].map((e, i, a) => [h('span', { style: `color:${ELEMENTS[e].color}`, text: ELEMENTS[e].short }), i < a.length - 1 ? h('span', { class: 'note', text: ' > ' }) : null]).flat()),
-          h('p', { text: 'Advantaged elements deal +20% to that affinity and win jutsu clashes. Fire ignites grass and wood and spreads; water soaks targets and puts fires out; soaked targets take +35% lightning damage and lightning arcs through puddles and rivers; wind fans flames and hurls enemy fire back; earth raises walls and cracks the ground.' })),
+          h('p', { text: 'Advantaged elements deal +20% to that affinity and win jutsu clashes. Fire ignites grass and wood and spreads; water soaks targets and puts fires out; soaked targets take +35% lightning damage and lightning arcs through puddles and rivers; wind fans flames and hurls enemy fire back; earth raises walls and cracks the ground.' }),
+          h('p', { text: 'WATER BOOST: cast a water jutsu while standing in or next to water (rivers, lakes, soaked ground) and it comes out 35% bigger and 30% stronger. Water-affinity shinobi also regain chakra faster near water.' })),
+        h('section', null, h('h3', { text: 'SUMMONING' }),
+          h('p', { text: 'STORM HAWK: ride a giant hawk over trees, walls and rivers. Attack (or hold it) to drop bombs where you aim, heavy to dive-bomb and jump off, jump to hop off. The hawk soaks hits until its shield breaks.' }),
+          h('p', { text: 'GREAT TOAD: drops from the sky onto the aim point, then spits water shots at nearby enemies for several seconds.' }),
+          h('p', { text: 'GIANT SERPENT: bursts out of the ground and tears forward, launching everything in its path and smashing props, then bites.' })),
         h('section', null, h('h3', { text: 'AWAKENING & ULTIMATE' }),
           h('p', { text: 'Two meters fill as you fight. AWAKEN (T) to transform for a while - Crimson Eye, Sage Mode, Beast Cloak, Eight Gates, Spirit Armor or Cursed Seal. ULTIMATE (G) unleashes your signature technique - meteors, tsunamis, lightning dragons and more. You are invulnerable while it winds up.' })),
         h('section', null, h('h3', { text: 'LEVELING UP' }),

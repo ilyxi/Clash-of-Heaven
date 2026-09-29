@@ -11,7 +11,7 @@ class PlayerController {
   constructor(f) {
     this.f = f;
     this.lmbHold = 0;
-    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, heavy: false, heavyPressed: false, jump: false, dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
+    this.out = { mx: 0, my: 0, ax: null, ay: null, light: false, lightHeld: false, heavy: false, heavyPressed: false, jump: false, dash: false, block: false, kunai: false, kunaiHeld: false, charge: false, j: [false, false, false, false], awaken: false, ult: false };
   }
 
   validLock(f, t) {
@@ -80,12 +80,14 @@ class PlayerController {
     if (f.lock) { o.ax = f.lock.x; o.ay = f.lock.y; }
 
     // hold left mouse for a heavy (tap = light combo)
-    const lmb = Input.isDown('light') && !Input.usingPad();
+    // (not while riding a summon: holding fire drops a stream of bombs instead)
+    const lmb = Input.isDown('light') && !Input.usingPad() && !f.mount;
     const prevHold = this.lmbHold;
     this.lmbHold = lmb ? this.lmbHold + dt : 0;
     const holdHeavy = this.lmbHold >= 0.26;
 
     o.light = Input.wasPressed('light');
+    o.lightHeld = Input.isDown('light');
     o.heavyPressed = Input.wasPressed('heavy') || (holdHeavy && prevHold < 0.26);
     o.heavy = Input.isDown('heavy') || holdHeavy;
     o.jump = Input.wasPressed('jump');

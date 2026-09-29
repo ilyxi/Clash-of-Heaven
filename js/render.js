@@ -97,8 +97,15 @@ const Render = (() => {
     if (lying) pose = 'hurt';
     const view = f.view, flip = f.flip;
     const cv = Sprites.get(look, pose, frame, view);
-    let sx = Math.round((f.x - f.y) * HALF_W - cam.x), sy = Math.round((f.x + f.y) * HALF_H - f.z - cam.y);
+    let sx = Math.round((f.x - f.y) * HALF_W - cam.x), sy = Math.round((f.x + f.y) * HALF_H - f.visZ() - cam.y);
     if (f.freeze > 0 && (f.state === 'hitstun' || f.state === 'air')) sx += (Math.floor(f.time * 60) % 2) ? 1 : -1;
+    if (f.mount) {
+      const m = f.mount;
+      if (f.flash > 0 && Math.floor(f.time * 30) % 2) ctx.globalAlpha = 0.6;
+      if (m.t < 1.5 && Math.floor(f.time * 10) % 2) ctx.globalAlpha = 0.55;
+      drawHawk(ctx, sx, sy, f.facing, m.flap, false);
+      ctx.globalAlpha = 1;
+    }
 
     let alpha = 1;
     const enemyOfViewer = viewer && Combat.enemies(viewer, f);
@@ -169,33 +176,42 @@ const Render = (() => {
   function drawOverhead(ctx, f, cam, viewer) {
     if (!f.alive || f.isClone) return;
     if (f.st.stealth > 0 && viewer && Combat.enemies(viewer, f)) return;
-    const sx = Math.round((f.x - f.y) * HALF_W - cam.x), sy = Math.round((f.x + f.y) * HALF_H - f.z - cam.y) - 38;
-    if (sx < -30 || sx > cam.w + 30 || sy < -20 || sy > cam.h + 40) return;
-    const w = 22;
-    ctx.fillStyle = '#120a18'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 5);
-    ctx.fillStyle = '#3a2a30'; ctx.fillRect(sx - w / 2, sy, w, 3);
+    const vz = f.visZ ? f.visZ() : f.z;
+    const wx = Math.round((f.x - f.y) * HALF_W - cam.x), wy = Math.round((f.x + f.y) * HALF_H - vz - cam.y) - 38;
+    if (wx < -30 || wx > cam.w + 30 || wy < -20 || wy > cam.h + 40) return;
+    // drawn in canvas pixels (finer than world pixels) to keep bars and names small
+    ctx.setTransform(1, 0, 0, 1, wx * HIRES, wy * HIRES);
+    const sx = 0, sy = 0;
+    const w = 30;
+    ctx.fillStyle = '#120a18'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 8);
+    ctx.fillStyle = '#3a2a30'; ctx.fillRect(sx - w / 2, sy, w, 4);
     const hp = U.clamp(f.hp / f.maxHp, 0, 1);
-    ctx.fillStyle = hp < 0.3 ? '#ff4a4a' : f.teamColor; ctx.fillRect(sx - w / 2, sy, Math.round(w * hp), 3);
-    ctx.fillStyle = '#6fa8ff'; ctx.fillRect(sx - w / 2, sy + 3, Math.round(w * f.chakra / f.maxChakra), 1);
-    Font.draw(ctx, String(f.level), sx - w / 2 - 3, sy - 2, '#ffe9a0', { align: 'right', outline: '#120a18' });
+    ctx.fillStyle = hp < 0.3 ? '#ff4a4a' : f.teamColor; ctx.fillRect(sx - w / 2, sy, Math.round(w * hp), 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(sx - w / 2, sy, Math.round(w * hp), 1);
+    ctx.fillStyle = '#6fa8ff'; ctx.fillRect(sx - w / 2, sy + 5, Math.round(w * f.chakra / f.maxChakra), 1);
+    Font.draw(ctx, String(f.level), sx - w / 2 - 3, sy - 1, '#ffe9a0', { align: 'right', outline: '#120a18' });
     if (f === viewer) {
       const b = Math.floor(f.time * 3) % 2;
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(sx - 2, sy - 7 + b, 5, 1); ctx.fillRect(sx - 1, sy - 6 + b, 3, 1); ctx.fillRect(sx, sy - 5 + b, 1, 1);
+      ctx.fillRect(sx - 3, sy - 9 + b, 7, 1); ctx.fillRect(sx - 2, sy - 8 + b, 5, 1); ctx.fillRect(sx - 1, sy - 7 + b, 3, 1); ctx.fillRect(sx, sy - 6 + b, 1, 1);
     } else if (!viewer || U.dist(viewer.x, viewer.y, f.x, f.y) < 11) {
       Font.draw(ctx, f.name.split(' ')[0].toUpperCase(), sx, sy - 10, f.teamColor, { align: 'center', outline: '#120a18' });
     }
     if (f.awakened) {
       const k = f.awakened.t / f.awakened.def.dur;
-      ctx.fillStyle = f.awakened.def.colors[1]; ctx.fillRect(sx - w / 2, sy + 5, Math.round(w * k), 1);
+      ctx.fillStyle = f.awakened.def.colors[1]; ctx.fillRect(sx - w / 2, sy + 7, Math.round(w * k), 1);
+    }
+    if (f.mount && f.mount.shield > 0) {
+      ctx.fillStyle = '#e8f0ff'; ctx.fillRect(sx - w / 2, sy + 9, Math.round(w * f.mount.shield / f.mount.maxShield), 1);
     }
     if (f.state === 'stun' || f.st.genjutsu > 0) {
       for (let k = 0; k < 3; k++) {
         const a = f.time * 5 + k * 2.1;
         ctx.fillStyle = f.st.genjutsu > 0 ? '#ff5050' : '#ffe14a';
-        ctx.fillRect(Math.round(sx + Math.cos(a) * 7), Math.round(sy + 10 + Math.sin(a) * 2), 2, 2);
+        ctx.fillRect(Math.round(sx + Math.cos(a) * 12), Math.round(sy + 12 + Math.sin(a) * 3), 3, 3);
       }
     }
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
   }
 
   // ---- blocks -----------------------------------------------------------------------
@@ -303,7 +319,7 @@ const Render = (() => {
       if (f.st.stealth > 0 && viewer && Combat.enemies(viewer, f)) continue;
       const [sx, sy] = DF.sp(f.x, f.y, 0, cam);
       if (sx < -30 || sx > VW + 30 || sy < -10 || sy > VH + 40) continue;
-      const s = Math.max(0.5, 1 - f.z / 120);
+      const s = f.mount ? 3.4 : Math.max(0.5, 1 - f.z / 120);
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       PX.ellipse(ctx, sx, sy, 7 * s, 3.5 * s);
       if (!f.dead && !f.isClone) {
@@ -326,8 +342,10 @@ const Render = (() => {
       if (tsx < -60 || tsx > VW + 60 || tsy < -30 || tsy > VH + 110) continue;
       items.push({ d: i + j + 1, b });
     }
-    for (const f of w.fighters) if (!f.removed) items.push({ d: f.x + f.y + 0.01, f });
+    // riders fly above props, so they sort as if a couple of tiles closer to the camera
+    for (const f of w.fighters) if (!f.removed) items.push({ d: f.x + f.y + 0.01 + (f.mount ? 2.5 : 0), f });
     for (const p of w.projectiles) items.push({ d: p.x + p.y + 0.02, p });
+    for (const h of w.hazards) if (h.drawSorted && !h.dead) items.push({ d: h.depth ? h.depth() : h.x + h.y, h });
     items.sort((a, b) => a.d - b.d);
 
     // occlusion: fade props that hide the watched fighter
@@ -340,6 +358,7 @@ const Render = (() => {
       if (it.b) drawBlock(ctx, it.b, A, cam, dt, fade && it.d > fade.d + 0.3 ? fade : null);
       else if (it.f) drawFighter(ctx, it.f, cam, viewer);
       else if (it.p) { const p = it.p; if (p.draw) p.draw(ctx, p, cam); else (PROJ_DRAW[p.kind] || PROJ_DRAW.orb)(ctx, p, cam); }
+      else if (it.h) it.h.drawSorted(ctx, cam);
     }
 
     for (const h of w.hazards) if (h.draw) h.draw(ctx, cam);
@@ -366,7 +385,7 @@ const Render = (() => {
   function drawLockMarker(w, cam) {
     const p = w.player, t = p && p.lock;
     if (!t || !t.alive || !p.alive) return;
-    const [sx, sy] = DF.sp(t.x, t.y, t.z, cam);
+    const [sx, sy] = DF.sp(t.x, t.y, t.visZ(), cam);
     const cy = sy - 15, r = 13 + Math.sin(w.realTime * 6) * 1.5;
     const a0 = w.realTime * 2;
     ctx.fillStyle = '#120a18';

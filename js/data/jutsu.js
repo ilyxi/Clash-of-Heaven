@@ -7,7 +7,7 @@
 
 const JUTSU = {};
 const D = (L) => 1 + 0.12 * (L - 1);                   // damage scale
-const SZ = (f, L) => (1 + 0.07 * (L - 1)) * f.mod.jutsuSize; // size scale
+const SZ = (f, L) => (1 + 0.07 * (L - 1)) * f.mod.jutsuSize * (f.envBoost || 1); // size scale (envBoost: water jutsu cast near water)
 
 function defJutsu(o) { JUTSU[o.id] = o; }
 
@@ -174,7 +174,7 @@ defJutsu({
   desc: 'Summon a serpent of water that hunts its target and crashes through several foes.',
   mastery: 'Lv5: Pierces everything and grows larger.', ai: { min: 2, max: 10, kind: 'proj' },
   use(f, L, aim) {
-    const s = SZ(f, L) * (L >= 5 ? 1.25 : 1);
+    const s = SZ(f, L) * (L >= 5 ? 1.25 : 1) * 1.2;
     shoot(f, aim.ang, 8.5, {
       kind: 'dragon', cols: ['#ffffff', '#b8e4ff', '#3fa0ff', '#174f9c'], element: 'water', size: Math.round(6 * s), radius: 0.6 * s, life: 1.6,
       dmg: 85 * D(L), knock: 8, launch: 150, stun: 0.6, homing: 1.8, pierce: L >= 5 ? 99 : 2, status: { wet: 6 }, ability: 'waterdragon',
@@ -198,7 +198,8 @@ defJutsu({
         c.acc += dt;
         if (c.acc >= 0.11 && c.shots < n) {
           c.acc = 0; c.shots++;
-          shoot(f, f.facing + U.rand(-0.05, 0.05), 14, { kind: 'waterball', element: 'water', size: 2, radius: 0.28, life: 0.65, dmg: 18 * D(L), knock: 1.6, stun: 0.28, status: { wet: 4 }, ability: 'waterbullets', clash: 0.7, blockDmg: 10, trail: TRAIL.water, onImpact(p) { FX.splash(p.x, p.y, 4, 0.6); } });
+          const s = SZ(f, L);
+          shoot(f, f.facing + U.rand(-0.05, 0.05), 14, { kind: 'waterball', element: 'water', size: Math.round(3 * s), radius: 0.32 * s, life: 0.65, dmg: 18 * D(L), knock: 1.6, stun: 0.28, status: { wet: 4 }, ability: 'waterbullets', clash: 0.7, blockDmg: 10, trail: TRAIL.water, onImpact(p) { FX.splash(p.x, p.y, 4, 0.6); } });
           SFX.playAt('splash', f.x, f.y, 0.5);
         }
       },
@@ -213,7 +214,7 @@ defJutsu({
   use(f, L, aim) {
     const dur = L >= 5 ? 2.3 : 1.5;
     shoot(f, aim.ang, 9, {
-      kind: 'bubble', element: 'water', size: 5, radius: 0.45, life: 0.9, dmg: 10, knock: 0, stun: 0.2, ability: 'waterprison', clash: 1, blockDmg: 5, trail: TRAIL.water,
+      kind: 'bubble', element: 'water', size: Math.round(6 * SZ(f, L)), radius: 0.5 * SZ(f, L), life: 0.9, dmg: 10, knock: 0, stun: 0.2, ability: 'waterprison', clash: 1, blockDmg: 5, trail: TRAIL.water,
       onHit(p, t) {
         t.applyStatus({ genjutsu: dur, wet: 6 }, f);
         t.vx = t.vy = 0;
@@ -283,13 +284,13 @@ defJutsu({
   desc: 'Send a wide wave rolling forward that sweeps enemies away and douses flames.',
   mastery: 'Lv5: A much wider, heavier wave.', ai: { min: 1, max: 6, kind: 'proj' },
   use(f, L, aim) {
-    const width = (L >= 5 ? 4.5 : 3.2) * SZ(f, L);
-    spawnWave(f, aim.ang, width, 7, 0.8, { dmg: 45 * D(L), knock: 9, stun: 0.55, ability: 'tidalwave' });
+    const width = (L >= 5 ? 5 : 3.8) * SZ(f, L);
+    spawnWave(f, aim.ang, width, 7.5 * Math.min(1.3, f.envBoost || 1), 0.8, { dmg: 45 * D(L), knock: 9, stun: 0.55, ability: 'tidalwave' }, 22 * SZ(f, L));
     SFX.playAt('water', f.x, f.y, 1);
   },
 });
 
-function spawnWave(f, ang, width, dist, dur, hit) {
+function spawnWave(f, ang, width, dist, dur, hit, height = 18) {
   const dx = Math.cos(ang), dy = Math.sin(ang), nx = -dy, ny = dx;
   return Combat.hazard({
     src: f, x: f.x + dx * 0.8, y: f.y + dy * 0.8, hitSet: new Set(), layer: 1,
@@ -318,14 +319,18 @@ function spawnWave(f, ang, width, dist, dur, hit) {
     },
     draw(ctx, cam) {
       if (this.cx === undefined) return;
-      const h = 18 + Math.sin(this.t * 20) * 2;
+      const h = height + Math.sin(this.t * 20) * 2;
       for (let o = -width / 2; o <= width / 2; o += 0.15) {
         const px = this.cx + nx * o, py = this.cy + ny * o;
         const [sx, sy] = DF.sp(px, py, 0, cam);
-        const hh = h * (1 - Math.pow(Math.abs(o) / (width / 2), 3) * 0.7);
-        ctx.fillStyle = '#1f6ad0'; ctx.fillRect(sx - 2, sy - hh, 4, hh);
-        ctx.fillStyle = '#3fa0ff'; ctx.fillRect(sx - 2, sy - hh, 4, hh * 0.6);
-        ctx.fillStyle = '#e8f6ff'; ctx.fillRect(sx - 2, sy - hh - 1, 4, 2);
+        const hh = Math.round(h * (1 - Math.pow(Math.abs(o) / (width / 2), 3) * 0.7) + Math.sin(o * 5 + this.t * 14) * 2);
+        ctx.fillStyle = '#174f9c'; ctx.fillRect(sx - 2, sy - hh, 4, hh);
+        ctx.fillStyle = '#1f6ad0'; ctx.fillRect(sx - 2, sy - hh, 4, hh * 0.75);
+        ctx.fillStyle = '#3fa0ff'; ctx.fillRect(sx - 2, sy - hh, 4, hh * 0.45);
+        ctx.fillStyle = '#9ad4ff'; ctx.fillRect(sx - 2, sy - hh + 1, 4, 2);
+        // curling white crest
+        ctx.fillStyle = '#e8f6ff'; ctx.fillRect(sx - 2, sy - hh - 2, 4, 2);
+        if (((o * 20) | 0) % 3 === 0) ctx.fillRect(sx - 1 + ((this.t * 30 + o * 9) | 0) % 3, sy - hh - 4, 2, 2);
       }
     },
   });
@@ -1042,8 +1047,9 @@ defJutsu({
   use(f, L, aim) {
     const n = L >= 5 ? 2 : 1;
     for (let i = 0; i < n; i++) {
+      const s = SZ(f, L) * 1.15;
       shoot(f, aim.ang + (i - (n - 1) / 2) * 0.4, 10, {
-        kind: 'dragon', cols: ['#ffffff', '#8fd0ff', '#2f7ad0', '#123a78'], element: 'water', size: 5, radius: 0.5, life: 1.4, histLen: 6,
+        kind: 'dragon', cols: ['#ffffff', '#8fd0ff', '#2f7ad0', '#123a78'], element: 'water', size: Math.round(5 * s), radius: 0.5 * s, life: 1.4, histLen: 6,
         dmg: 62 * D(L), knock: 6, launch: 160, stun: 0.6, homing: 2.6, status: { wet: 6 }, ability: 'watershark', clash: 2, blockDmg: 40,
         trail(p, dt) { TRAIL.hist(p); TRAIL.water(p, dt); },
         onImpact(p) { FX.splash(p.x, p.y, 14, 1.2); W.arena.wetRadius(p.x, p.y, 1.2, 6); SFX.playAt('splash', p.x, p.y); },

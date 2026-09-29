@@ -119,16 +119,19 @@ const FX = (() => {
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // Floating numbers are drawn in canvas pixels (HIRES finer than the world).
   function drawTexts(ctx, cam) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     for (const t of texts) {
-      const sx = (t.x - t.y) * HALF_W - cam.x;
-      const sy = (t.x + t.y) * HALF_H - t.z - cam.y;
+      const sx = ((t.x - t.y) * HALF_W - cam.x) * HIRES;
+      const sy = ((t.x + t.y) * HALF_H - t.z - cam.y) * HIRES;
       const k = t.t / t.life;
       if (k > 0.75) ctx.globalAlpha = 1 - (k - 0.75) / 0.25;
-      const pop = t.t < 0.08 ? 1 + (0.08 - t.t) * 6 : 1;
-      Font.draw(ctx, t.s, sx, sy, t.color, { align: 'center', outline: '#120a18', scale: Math.max(1, Math.round((t.scale || 1) * pop)) });
+      const pop = t.t < 0.1 ? 1 + (0.1 - t.t) * 8 : 1;
+      Font.draw(ctx, t.s, Math.round(sx), Math.round(sy), t.color, { align: 'center', outline: '#120a18', scale: Math.max(1, Math.round((t.scale || 1) * pop * 1.34)) });
       ctx.globalAlpha = 1;
     }
+    ctx.setTransform(HIRES, 0, 0, HIRES, 0, 0);
   }
 
   // ---- presets ------------------------------------------------------------------
@@ -224,6 +227,64 @@ const FX = (() => {
     },
     chakra(x, y, n, colors) {
       burst(x, y, 12, n, { colors: colors || ELEM_COLORS.shinobi, kind: 'glow', min: 0.5, max: 2, g: -60, drag: 3, lifeMin: 0.2, lifeMax: 0.5, add: true, size: 1.5 });
+    },
+    // Motion smear that follows a fighter's strike: 'arc' = swept crescent
+    // (kicks, sweeps, uppercuts), 'thrust' = speed streaks along the punch line.
+    smear(f, o = {}) {
+      const ang0 = f.facing, reach = o.reach || 1, arc = o.arc || 1.4, z0 = o.z !== undefined ? o.z : 16;
+      const col = o.color || '#ffffff', edge = o.edge || '#bfe0ff', rise = o.rise || 0, dir = o.dir || 1;
+      const kind = o.kind || 'arc';
+      api.custom({
+        life: o.life || 0.13, layer: 1,
+        draw(ctx, cam, k) {
+          ctx.globalAlpha = (1 - k) * 0.9;
+          if (kind === 'thrust') {
+            const ca = Math.cos(ang0), sa = Math.sin(ang0), px = -sa, py = ca;
+            for (let n = -1; n <= 1; n++) {
+              const off = n * 0.09, len = reach * (n === 0 ? 1 : 0.7), st = 0.25 + k * 0.35;
+              const [ax, ay] = DF.sp(f.x + ca * st + px * off, f.y + sa * st + py * off, f.z + z0 + n * 2, cam);
+              const [bx, by] = DF.sp(f.x + ca * (st + len) + px * off, f.y + sa * (st + len) + py * off, f.z + z0 + n * 2, cam);
+              ctx.fillStyle = n === 0 ? col : edge;
+              PX.line(ctx, ax, ay, bx, by, n === 0 && k < 0.4 ? 2 : 1);
+            }
+            ctx.globalAlpha = 1;
+            return;
+          }
+          const sweep = Math.min(1, k * 3.2), N = 16;
+          for (let i = 0; i <= N; i++) {
+            const u = i / N;
+            if (u > sweep) break;
+            const a = ang0 + dir * (-arc / 2 + arc * u);
+            const r = reach * (0.7 + 0.3 * Math.sin(u * Math.PI));
+            const [sx, sy] = DF.sp(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r, f.z + z0 + rise * (0.5 - u), cam);
+            const th = Math.max(1, Math.round(Math.sin(u * Math.PI) * 3 * (1 - k) + 0.4));
+            ctx.fillStyle = edge; ctx.fillRect(Math.round(sx - th / 2) - 1, Math.round(sy - th / 2), th + 2, th);
+            ctx.fillStyle = col; ctx.fillRect(Math.round(sx - th / 2), Math.round(sy - th / 2), th, Math.max(1, th - 1));
+          }
+          ctx.globalAlpha = 1;
+        },
+      });
+    },
+    // Comic-style starburst where a blow lands.
+    impact(x, y, z, power = 1, color) {
+      const rot = R(0, TAU), rays = power > 1.5 ? 10 : 8;
+      api.custom({
+        life: 0.12 + power * 0.03, layer: 1,
+        draw(ctx, cam, k) {
+          const [sx, sy] = DF.sp(x, y, z, cam);
+          const Rr = (5 + power * 5) * (0.55 + k * 0.8);
+          ctx.globalAlpha = 1 - k;
+          ctx.fillStyle = color || '#fff2b0';
+          for (let i = 0; i < rays; i++) {
+            const a = rot + i * TAU / rays, len = Rr * (i % 2 ? 0.6 : 1);
+            PX.line(ctx, sx + Math.cos(a) * Rr * 0.3, sy + Math.sin(a) * Rr * 0.25, sx + Math.cos(a) * len, sy + Math.sin(a) * len * 0.8, i % 2 ? 1 : 2);
+          }
+          ctx.fillStyle = '#ffffff';
+          PX.circle(ctx, sx, sy, Math.max(1, Math.round((1 - k) * (2 + power * 1.8))));
+          if (power > 1) PX.ellipseRing(ctx, sx, sy, Math.round(Rr * 1.1), Math.round(Rr * 0.8), 1);
+          ctx.globalAlpha = 1;
+        },
+      });
     },
     // Ghost image of a sprite that fades (dash trails, flash step).
     afterimage(canvas, x, y, z, flip, life = 0.25, alpha = 0.55) {

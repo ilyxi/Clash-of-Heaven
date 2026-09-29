@@ -105,6 +105,7 @@ class AIController {
     if (t) this.aimAt(o, t, 30);
     else { o.ax = f.x + Math.cos(f.facing) * 2; o.ay = f.y + Math.sin(f.facing) * 2; }
 
+    if (f.mount) { this.ride(f, dt, o, t); return o; }
     this.defend(f, dt, o);
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
@@ -114,6 +115,22 @@ class AIController {
     this.steer(f, dt, o);
     if (this.dashDirT > 0) { this.dashDirT -= dt; o.mx = this.dashDir[0]; o.my = this.dashDir[1]; }
     return o;
+  }
+
+  // Riding a summon: circle the target at bombing range and rain bombs.
+  ride(f, dt, o, t) {
+    o.lightHeld = false;
+    if (!t) { o.mx = Math.cos(this.time * 0.7); o.my = Math.sin(this.time * 0.7); return; }
+    const dist = U.dist(f.x, f.y, t.x, t.y);
+    this.aimAt(o, t, 8);
+    if (dist < 6.5) o.lightHeld = Math.random() < 0.9;
+    const [nx, ny] = U.norm(t.x - f.x, t.y - f.y);
+    const radial = dist > 4.8 ? 1 : dist < 3.2 ? -0.8 : 0;
+    this.strafeT -= dt;
+    if (this.strafeT <= 0) { this.strafeT = U.rand(1, 2.5); if (Math.random() < 0.5) this.strafe *= -1; }
+    o.mx = nx * radial - ny * this.strafe * 0.8; o.my = ny * radial + nx * this.strafe * 0.8;
+    const m = f.mount;
+    if ((m.t < 1.2 || m.shield < m.maxShield * 0.2) && dist < 5 && Math.random() < dt * 3) o.heavyPressed = true;
   }
 
   // ---- defence: blocks, parries, dodges, substitution --------------------------

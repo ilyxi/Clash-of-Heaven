@@ -27,19 +27,19 @@ const PRESETS = [
     jutsu: ['spiral', 'rotation', 'phoenix', 'flashstep'], awakening: 'gates', ultimate: 'cannon' },
   { id: 'p_haru', name: 'Haru Kazemaki', affinity: 'wind',
     look: { skin: '#ffe0bd', hair: '#ffd23f', hairStyle: 'spiky', eyes: '#2e6bd6', outfit: '#ff7a1a', pants: '#2d3550', cloth: '#2a4fd6', headband: 'forehead', extra: 'marks' },
-    jutsu: ['clones', 'spiral', 'windblade', 'windrang'], awakening: 'beast', ultimate: 'thousand' },
+    jutsu: ['clones', 'spiral', 'windrang', 'summonhawk'], awakening: 'beast', ultimate: 'thousand' },
   { id: 'p_yuki', name: 'Yuki Shirogane', affinity: 'water',
     look: { skin: '#f3d2c1', hair: '#b0b8c8', hairStyle: 'short', eyes: '#6ec6ff', outfit: '#3a5fd6', pants: '#d8d0c0', cloth: '#d8d0c0', headband: 'arm', extra: 'none' },
-    jutsu: ['waterbullets', 'tidalwave', 'vacuumshots', 'mist'], awakening: 'sage', ultimate: 'tsunami' },
+    jutsu: ['waterbullets', 'tidalwave', 'summontoad', 'mist'], awakening: 'sage', ultimate: 'tsunami' },
   { id: 'p_daichi', name: 'Daichi Morikawa', affinity: 'earth',
     look: { skin: '#e8b07f', hair: '#5a3a22', hairStyle: 'wild', eyes: '#2a2a38', outfit: '#3f6b3a', pants: '#2d4a3a', cloth: '#8a6a3a', headband: 'forehead', extra: 'cloak' },
-    jutsu: ['tectonic', 'mudswamp', 'flamestream', 'rockspikes'], awakening: 'gates', ultimate: 'meteor' },
+    jutsu: ['tectonic', 'mudswamp', 'summonsnake', 'rockspikes'], awakening: 'gates', ultimate: 'meteor' },
   { id: 'p_akane', name: 'Akane Hoshino', affinity: 'lightning',
     look: { skin: '#ffe0bd', hair: '#7a4fd6', hairStyle: 'pony', eyes: '#e0a020', outfit: '#6a2d8a', pants: '#1e1e26', cloth: '#6a2d8a', headband: 'forehead', extra: 'none' },
     jutsu: ['larmor', 'discharge', 'lance', 'chain'], awakening: 'spirit', ultimate: 'kirin' },
   { id: 'p_sora', name: 'Sora Tenma', affinity: 'fire',
     look: { skin: '#f7c99b', hair: '#141414', hairStyle: 'long', eyes: '#c23b3b', outfit: '#2a2a36', pants: '#1e1e26', cloth: '#b8322a', headband: 'forehead', extra: 'cloak' },
-    jutsu: ['fireball', 'phoenix', 'clones', 'shadowbind'], awakening: 'crimson', ultimate: 'moon' },
+    jutsu: ['fireball', 'phoenix', 'summonsnake', 'shadowbind'], awakening: 'crimson', ultimate: 'moon' },
 ];
 
 const Store = {

@@ -47,6 +47,24 @@ const Icons = (() => {
     shuriken(x, c) { for (const [ox, oy] of [[7, 8], [16, 14]]) { x.fillStyle = c.light; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; PX.line(x, ox, oy, ox + Math.cos(a) * 5, oy + Math.sin(a) * 5, 2); } x.fillStyle = c.dark; x.fillRect(ox - 1, oy - 1, 2, 2); } },
     shotgun(x, c) { x.fillStyle = c.dark; x.fillRect(2, 11, 6, 3); for (let k = 0; k < 6; k++) { const a = -0.5 + k * 0.2; x.fillStyle = k % 2 ? c.main : c.light; x.fillRect(Math.round(10 + Math.cos(a) * (6 + k % 3 * 3)), Math.round(12 + Math.sin(a) * (6 + k % 3 * 3)), 3, 2); } },
     shark(x, c) { x.fillStyle = c.main; PX.ellipse(x, 11, 13, 8, 4); x.fillRect(9, 5, 3, 5); x.fillRect(2, 10, 3, 6); x.fillStyle = c.light; PX.ellipse(x, 12, 15, 6, 2); x.fillStyle = '#fff'; for (let k = 0; k < 3; k++) x.fillRect(15 + k * 2, 14, 1, 2); x.fillStyle = '#120a18'; x.fillRect(16, 11, 1, 1); },
+    bird(x, c) {
+      x.fillStyle = c.dark; for (let k = 0; k < 9; k++) { x.fillRect(3 + k, 6 + Math.abs(k - 4), 2, 3); x.fillRect(12 + k, 10 - Math.abs(k - 4) + (k > 4 ? 0 : 0), 2, 3); }
+      x.fillStyle = c.main; PX.ellipse(x, 12, 13, 5, 3); x.fillStyle = c.light; PX.ellipse(x, 12, 14, 3, 1);
+      x.fillStyle = '#ffc83a'; x.fillRect(17, 11, 3, 2); x.fillStyle = '#fff'; x.fillRect(15, 11, 1, 1);
+      x.fillStyle = c.dark; x.fillRect(5, 13, 3, 4); x.fillRect(8, 15, 2, 3);
+    },
+    toad(x, c) {
+      x.fillStyle = '#4a6a28'; PX.ellipse(x, 12, 15, 9, 6); x.fillStyle = '#7a9a3a'; PX.ellipse(x, 12, 14, 8, 5);
+      x.fillStyle = '#e8d8a0'; PX.ellipse(x, 13, 18, 5, 2);
+      for (const ex of [8, 16]) { x.fillStyle = '#4a6a28'; PX.circle(x, ex, 8, 3); x.fillStyle = '#ffd84a'; PX.circle(x, ex, 8, 2); x.fillStyle = '#120a18'; x.fillRect(ex, 7, 1, 3); }
+      x.fillStyle = '#8a2a2a'; x.fillRect(7, 15, 10, 1); x.fillStyle = c.light; x.fillRect(3, 4, 2, 2); x.fillRect(20, 3, 2, 2);
+    },
+    snake(x, c) {
+      for (let k = 0; k < 14; k++) { const t = k / 13; x.fillStyle = k % 3 ? c.main : c.dark; PX.circle(x, 3 + t * 14, 19 - Math.sin(t * 5) * 4 - t * 8, 3 - t); }
+      x.fillStyle = c.dark; PX.ellipse(x, 18, 6, 4, 3); x.fillStyle = c.main; PX.ellipse(x, 18, 5, 3, 2);
+      x.fillStyle = '#ffe14a'; x.fillRect(19, 4, 2, 1); x.fillStyle = '#fff'; x.fillRect(21, 8, 1, 2); x.fillRect(19, 8, 1, 2);
+      x.fillStyle = '#ff4a5a'; x.fillRect(22, 7, 2, 1);
+    },
     star(x, c) { x.fillStyle = c.light; for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; PX.line(x, 12, 12, 12 + Math.cos(a) * (k % 2 ? 5 : 10), 12 + Math.sin(a) * (k % 2 ? 5 : 10), 2); } x.fillStyle = '#fff'; PX.circle(x, 12, 12, 2); },
     eye(x, c) { x.fillStyle = '#fff'; PX.ellipse(x, 12, 12, 9, 5); x.fillStyle = c.main; PX.circle(x, 12, 12, 4); x.fillStyle = c.dark; PX.circle(x, 12, 12, 2); x.fillStyle = c.light; x.fillRect(10, 10, 1, 1); },
   };

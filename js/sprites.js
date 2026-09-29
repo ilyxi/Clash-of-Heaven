@@ -6,9 +6,9 @@
 // Left-facing variants are mirrored at draw time.
 // ---------------------------------------------------------------------------
 
-const SPR_W = 34, SPR_H = 38;
-const SPR_OX = 17, SPR_OY = 35; // feet anchor inside the sprite canvas
-const DX = 1, DY = 2;           // offset of the design grid inside the canvas
+const SPR_W = 40, SPR_H = 38;
+const SPR_OX = 20, SPR_OY = 35; // feet anchor inside the sprite canvas
+const DX = 4, DY = 2;           // offset of the design grid inside the canvas (room for extended limbs)
 
 const Sprites = (() => {
   // ---- poses ----------------------------------------------------------------
@@ -24,14 +24,39 @@ const Sprites = (() => {
       { by: 1, armL: { e: [0, 3], h: [-1, 5] }, armR: { e: [0, 3], h: [1, 5] }, legL: L_STAND, legR: R_STAND },
     ],
     run: makeRunCycle(8),
-    jab: [{ lean: 1, armR: { e: [3, 1], h: [7, 1] }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [3, 6] } }],
-    cross: [{ lean: 2, armL: { e: [4, 1], h: [9, 0], front: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [1, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } }],
-    kick: [{ lean: -1, armL: { e: [-2, 0], h: [-4, -2] }, armR: { e: [2, 1], h: [4, 3] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, -1], f: [9, -1] } }],
-    uppercut: [{ by: 1, lean: 2, armR: { e: [2, -2], h: [3, -7] }, armL: { e: [-1, 2], h: [-3, 3] }, legL: { k: [-2, 3], f: [-4, 6] }, legR: { k: [3, 2], f: [5, 6] } }],
-    sweep: [{ by: 3, lean: 1, armL: { e: [-2, 1], h: [-4, 4] }, armR: { e: [2, 0], h: [4, -2] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [4, 1], f: [9, 5] } }],
-    heavyWind: [{ by: 2, lean: -1, armR: { e: [-3, 1], h: [-6, 1], back: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } }],
+    // Strikes have 3 frames: 0 = anticipation, 1 = impact, 2 = follow-through.
+    jab: [
+      { by: 1, armR: { e: [1, 2], h: [3, 0], fist: true }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-3, 6] }, legR: { k: [1, 3], f: [2, 6] } },
+      { lean: 2, armR: { e: [4, 0], h: [9, 0], fist: true }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [4, 6] } },
+      { lean: 1, armR: { e: [3, 1], h: [6, 1], fist: true }, armL: { e: [1, 2], h: [3, 1], front: true }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [3, 6] } },
+    ],
+    cross: [
+      { by: 1, lean: -1, armL: { e: [-1, 2], h: [1, 0], fist: true }, armR: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-1, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+      { lean: 3, armL: { e: [5, 0], h: [11, -1], front: true, fist: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [2, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } },
+      { lean: 2, armL: { e: [4, 1], h: [7, 1], front: true, fist: true }, armR: { e: [-1, 2], h: [-2, 4], back: true }, legL: { k: [1, 3], f: [2, 6] }, legR: { k: [-1, 3], f: [-3, 6] } },
+    ],
+    kick: [
+      { lean: -1, armL: { e: [-2, 1], h: [-4, 0] }, armR: { e: [2, 1], h: [3, -1] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [3, 0], f: [2, 3] } },
+      { lean: -2, armL: { e: [-2, 0], h: [-5, -2] }, armR: { e: [2, 1], h: [4, 3] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [5, -1], f: [11, -2] } },
+      { lean: -1, armL: { e: [-2, 1], h: [-4, 1] }, armR: { e: [2, 1], h: [4, 2] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [3, 1], f: [5, 4] } },
+    ],
+    uppercut: [
+      { by: 3, lean: 1, armR: { e: [0, 3], h: [2, 5], fist: true }, armL: { e: [1, 1], h: [3, 0], front: true }, legL: { k: [-2, 2], f: [-4, 6] }, legR: { k: [3, 2], f: [4, 6] } },
+      { by: -1, lean: 2, armR: { e: [3, -3], h: [4, -9], fist: true }, armL: { e: [-1, 2], h: [-3, 3] }, legL: { k: [-1, 2], f: [-3, 5] }, legR: { k: [1, 3], f: [2, 6] } },
+      { lean: 1, armR: { e: [2, -3], h: [2, -7], fist: true }, armL: { e: [-1, 2], h: [-3, 3] }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+    ],
+    sweep: [
+      { by: 2, armL: { e: [-2, 2], h: [-4, 4] }, armR: { e: [1, 2], h: [2, 4] }, legL: { k: [-1, 2], f: [-2, 6] }, legR: { k: [1, 2], f: [-3, 5] } },
+      { by: 3, lean: 1, armL: { e: [-2, 1], h: [-5, 4] }, armR: { e: [2, 0], h: [4, -2] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [4, 1], f: [10, 5] } },
+      { by: 3, lean: 1, armL: { e: [-2, 1], h: [-4, 4] }, armR: { e: [2, 1], h: [4, 1] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [3, 2], f: [6, 6] } },
+    ],
+    heavyWind: [{ by: 2, lean: -1, armR: { e: [-3, 1], h: [-6, 1], back: true, fist: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } }],
     palm: [{ by: 1, lean: 3, armR: { e: [4, 0], h: [9, -1] }, armL: { e: [-1, 2], h: [-3, 2] }, legL: { k: [-2, 3], f: [-4, 6] }, legR: { k: [3, 2], f: [5, 6] } }],
-    throw: [{ lean: 1, armR: { e: [2, -2], h: [6, -2] }, armL: { e: [-1, 2], h: [-3, 4] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
+    throw: [
+      { lean: -1, armR: { e: [-2, -1], h: [-3, -4], back: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-1, 3], f: [-3, 6] }, legR: { k: [1, 3], f: [2, 6] } },
+      { lean: 2, armR: { e: [3, -2], h: [7, -2] }, armL: { e: [-1, 2], h: [-3, 4] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+      { lean: 2, armR: { e: [3, 1], h: [6, 3] }, armL: { e: [-1, 2], h: [-3, 4] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [2, 3], f: [3, 6] } },
+    ],
     seal: [
       { armL: { e: [1, 3], h: [4, 3], front: true }, armR: { e: [-1, 3], h: [-4, 3], front: true }, legL: L_STAND, legR: R_STAND },
       { armL: { e: [1, 2], h: [4, 1], front: true }, armR: { e: [-1, 2], h: [-4, 1], front: true }, legL: L_STAND, legR: R_STAND },
@@ -49,19 +74,44 @@ const Sprites = (() => {
       { by: 2, armL: { e: [-1, 2], h: [-3, 5] }, armR: { e: [1, 2], h: [3, 5] }, legL: { k: [-2, 3], f: [-3, 6] }, legR: { k: [2, 3], f: [3, 6] } },
     ],
     raise: [{ armL: { e: [-1, -3], h: [1, -7] }, armR: { e: [1, -3], h: [-1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
-    slam: [{ by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true }, armR: { e: [2, 3], h: [5, 6] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } }],
+    slam: [
+      { lean: -1, armL: { e: [0, -3], h: [2, -8], front: true, fist: true }, armR: { e: [1, -3], h: [3, -8], fist: true }, legL: { k: [1, 2], f: [-1, 4] }, legR: { k: [2, 2], f: [2, 4] } },
+      { by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true, fist: true }, armR: { e: [2, 3], h: [5, 6], fist: true }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } },
+      { by: 3, lean: 1, armL: { e: [2, 3], h: [4, 6], front: true }, armR: { e: [2, 3], h: [5, 6] }, legL: { k: [-2, 2], f: [-3, 6] }, legR: { k: [2, 2], f: [3, 6] } },
+    ],
     victory: [{ armL: A_DOWN, armR: { e: [1, -3], h: [1, -7] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 3], f: [2, 6] } }],
     // airborne
     jump: [{ lean: 1, armL: { e: [-2, -2], h: [-3, -5] }, armR: { e: [2, -2], h: [3, -5] }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } }],
     fall: [{ armL: { e: [-3, 0], h: [-5, -1] }, armR: { e: [3, 0], h: [5, -1] }, legL: { k: [-1, 3], f: [-2, 6] }, legR: { k: [1, 2], f: [2, 5] } }],
-    airpunch: [{ lean: 2, armR: { e: [4, 0], h: [8, 0] }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [2, 1], f: [1, 3] } }],
-    airkick: [{ lean: -1, armL: { e: [-2, -1], h: [-4, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [4, 1], f: [9, 2] } }],
-    dive: [{ lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [6, 7] } }],
+    airpunch: [
+      { armR: { e: [-1, 1], h: [1, -1], fist: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } },
+      { lean: 3, armR: { e: [5, 0], h: [10, 0], fist: true }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-3, 4] }, legR: { k: [2, 1], f: [1, 3] } },
+      { lean: 2, armR: { e: [3, 1], h: [6, 1], fist: true }, armL: { e: [-1, 1], h: [-3, 3] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [2, 1], f: [1, 3] } },
+    ],
+    airkick: [
+      { lean: 1, armL: { e: [-2, -1], h: [-4, -2] }, armR: { e: [1, -1], h: [3, -3] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [3, -1], f: [1, 2] } },
+      { lean: -2, armL: { e: [-2, -1], h: [-5, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-2, 4] }, legR: { k: [5, 1], f: [11, 1] } },
+      { lean: -1, armL: { e: [-2, -1], h: [-4, -3] }, armR: { e: [1, -2], h: [2, -5] }, legL: { k: [0, 2], f: [-1, 4] }, legR: { k: [3, 1], f: [5, 4] } },
+    ],
+    dive: [
+      { lean: -1, armL: { e: [-1, -3], h: [0, -7] }, armR: { e: [1, -3], h: [1, -7] }, legL: { k: [1, 1], f: [-1, 3] }, legR: { k: [2, 1], f: [1, 2] } },
+      { lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [7, 8] } },
+      { lean: 2, armL: { e: [-2, -2], h: [-4, -4] }, armR: { e: [-2, -2], h: [-3, -5], back: true }, legL: { k: [1, 2], f: [0, 4] }, legR: { k: [3, 4], f: [6, 7] } },
+    ],
     // signatures
-    lunge: [{ by: 2, lean: 4, armR: { e: [5, 0], h: [10, 0] }, armL: { e: [-2, 1], h: [-5, 1], back: true }, legL: { k: [-3, 2], f: [-6, 5] }, legR: { k: [4, 2], f: [6, 6] } }],
+    lunge: [
+      { by: 2, lean: -1, armR: { e: [-2, 1], h: [-4, 1], back: true, fist: true }, armL: { e: [2, 1], h: [4, 0], front: true }, legL: { k: [-2, 3], f: [-4, 6] }, legR: { k: [3, 2], f: [5, 6] } },
+      { by: 2, lean: 4, armR: { e: [5, 0], h: [11, 0], fist: true }, armL: { e: [-2, 1], h: [-5, 1], back: true }, legL: { k: [-3, 2], f: [-7, 5] }, legR: { k: [4, 2], f: [6, 6] } },
+      { by: 1, lean: 3, armR: { e: [4, 1], h: [8, 1], fist: true }, armL: { e: [-2, 1], h: [-4, 2], back: true }, legL: { k: [-2, 3], f: [-5, 6] }, legR: { k: [3, 2], f: [5, 6] } },
+    ],
     spin: [
       { lean: -1, armL: { e: [-3, 0], h: [-7, 0] }, armR: { e: [3, 0], h: [7, 0] }, legL: { k: [0, 3], f: [-1, 6] }, legR: { k: [4, 0], f: [8, 1] } },
       { lean: 1, armL: { e: [-3, 0], h: [-7, -1] }, armR: { e: [3, 0], h: [7, -1] }, legL: { k: [-4, 0], f: [-8, 1] }, legR: { k: [0, 3], f: [1, 6] } },
+    ],
+    // kneeling on a summon's back; frame 1 = throwing down
+    ride: [
+      { by: 3, lean: 1, armL: { e: [1, 2], h: [3, 3], front: true }, armR: { e: [2, 2], h: [4, 3] }, legL: { k: [3, 1], f: [-2, 4] }, legR: { k: [4, 2], f: [0, 5] } },
+      { by: 3, lean: 2, armL: { e: [1, 2], h: [3, 3], front: true }, armR: { e: [3, 2], h: [7, 5] }, legL: { k: [3, 1], f: [-2, 4] }, legR: { k: [4, 2], f: [0, 5] } },
     ],
     backkick: [{ lean: 2, armL: { e: [2, 1], h: [4, 3], front: true }, armR: { e: [2, 0], h: [5, -1] }, legL: { k: [-4, 0], f: [-9, -1] }, legR: { k: [0, 3], f: [1, 6] } }],
   };
@@ -73,19 +123,26 @@ const Sprites = (() => {
     for (let i = 0; i < n; i++) {
       const t = (i / n) * TAU;
       const leg = (ph) => {
-        const fx = Math.cos(ph) * 4.5;
-        const lift = Math.max(0, -Math.sin(ph)) * 3.2;           // foot off the ground on the back-swing
+        const fx = Math.cos(ph) * 5.2;
+        const lift = Math.max(0, -Math.sin(ph)) * 3.8;           // foot off the ground on the back-swing
         const fy = Math.round(6 - lift);
-        const kx = Math.round(fx * 0.45 + 1 + (lift > 1 ? 1.5 : 0));
-        const ky = Math.round(3 - lift * 0.6);
+        // the knee drives forward and up while the foot recovers
+        const kx = Math.round(fx * 0.45 + 1 + (lift > 1 ? 2 : 0));
+        const ky = Math.round(3 - lift * 0.7);
         return { k: [kx, ky], f: [Math.round(fx), fy] };
       };
       const arm = (ph, far) => {
         const s = -Math.cos(ph);                                 // opposite to the same-side leg
-        return { e: [Math.round(s * 1.5), 2], h: [Math.round(s * 3), Math.round(4 - Math.abs(s) * 1.5)], back: far && s < 0 };
+        const fw = Math.max(0, s), bk = Math.max(0, -s);
+        // bent-elbow pump: the hand comes up to the chest going forward, drops behind the hip going back
+        return {
+          e: [Math.round(s * 1.7), Math.round(2 - fw * 0.4)],
+          h: [Math.round(fw * 3.4 - bk * 3.2), Math.round(4 - fw * 3.4 + bk * 0.3)],
+          back: far && s < 0, fist: true,
+        };
       };
-      const by = Math.round(-Math.sin(t * 2) * 0.9);
-      frames.push({ lean: 1, by, legR: leg(t), legL: leg(t + Math.PI), armR: arm(t + Math.PI, true), armL: arm(t, false) });
+      const by = Math.round(-Math.sin(t * 2) * 1.1);
+      frames.push({ lean: 2, by, legR: leg(t), legL: leg(t + Math.PI), armR: arm(t + Math.PI, true), armL: arm(t, false) });
     }
     return frames;
   }
@@ -261,7 +318,15 @@ const Sprites = (() => {
     const sleeve = dim ? P.outD : P.out;
     brushLine(ctx, sx, sy, ex, ey, 2, 2, sleeve);
     brushLine(ctx, ex, ey, hx, hy, 2, 2, sleeve);
-    rect(ctx, hx, hy, 2, 2, dim ? P.skinD : P.skin);
+    if (arm.fist && Math.abs(arm.h[0]) >= 6) {
+      // extended fist: wrapped wrist + chunky knuckles
+      const dir = arm.h[0] > 0 ? 1 : -1;
+      rect(ctx, hx - dir, hy, 1, 2, P.wrap);
+      rect(ctx, dir > 0 ? hx : hx - 1, hy - 1, 3, 3, dim ? P.skinD : P.skin);
+      rect(ctx, dir > 0 ? hx + 2 : hx - 1, hy - 1, 1, 3, P.skinD);
+    } else {
+      rect(ctx, hx, hy, 2, 2, dim ? P.skinD : P.skin);
+    }
   }
 
   function drawLeg(ctx, P, hx, hy, leg, lead) {
@@ -537,7 +602,7 @@ const Sprites = (() => {
     let c = portraitCache.get(key);
     if (c) return c;
     const src = get(look, 'idle', 0, 'F');
-    const sx = 5, sy = 1, sw = 24, sh = 22;
+    const sx = 2 + DX, sy = 1, sw = 24, sh = 22;
     // hi-res canvas; lw/lh give the logical size
     c = U.makeCanvas(sw * scale * HIRES, sh * scale * HIRES);
     c.getContext('2d').drawImage(src, sx * HIRES, sy * HIRES, sw * HIRES, sh * HIRES, 0, 0, c.width, c.height);

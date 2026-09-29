@@ -849,10 +849,10 @@ const GEN = {
     const riverX = (j) => W * 0.74 + Math.sin(j * 0.11 + A.seed) * 4 + Math.sin(j * 0.27) * 1.5;
     for (let j = 0; j < W; j++) {
       const rx = riverX(j);
-      for (let i = Math.floor(rx - 2); i <= Math.ceil(rx + 2); i++) if (A.inBounds(i, j) && Math.abs(i + 0.5 - rx) <= 1.9) A.tiles[A.idx(i, j)] = T_WATER;
+      for (let i = Math.floor(rx - 3); i <= Math.ceil(rx + 3); i++) if (A.inBounds(i, j) && Math.abs(i + 0.5 - rx) <= 2.7) A.tiles[A.idx(i, j)] = T_WATER;
     }
     // pond feeding the river
-    GEN._disc(A, W * 0.8, W * 0.72, 5, T_WATER, 3, A.seed);
+    GEN._disc(A, W * 0.8, W * 0.72, 6.5, T_WATER, 3, A.seed);
     // roads from plaza
     GEN._path(A, [[c, c], [c, 6]], 2.2, T_STONE);
     GEN._path(A, [[c, c], [6, c]], 2.2, T_STONE);
@@ -860,7 +860,7 @@ const GEN = {
     GEN._path(A, [[c, c], [c, W - 6]], 2.2, T_STONE);
     for (const bj of [c - 1, c, c + 1, 14, 15, 46, 47]) {
       const rx = riverX(bj);
-      for (let i = Math.floor(rx - 3); i <= Math.ceil(rx + 3); i++) if (A.inBounds(i, bj) && A.tiles[A.idx(i, bj)] === T_WATER) A.tiles[A.idx(i, bj)] = T_WOOD;
+      for (let i = Math.floor(rx - 4); i <= Math.ceil(rx + 4); i++) if (A.inBounds(i, bj) && A.tiles[A.idx(i, bj)] === T_WATER) A.tiles[A.idx(i, bj)] = T_WOOD;
     }
     // village (north-west quadrant)
     for (let hy = 6; hy < c - 8; hy += 7) {
@@ -903,15 +903,15 @@ const GEN = {
     // great river down the middle, widening into a lake in the south
     const rx = (j) => c + Math.sin(j * 0.08 + 1) * 3;
     for (let j = 0; j < W; j++) {
-      const width = 2.2 + Math.max(0, (j - W * 0.62)) * 0.25;
+      const width = 3 + Math.max(0, (j - W * 0.62)) * 0.25;
       const x = rx(j);
       for (let i = Math.floor(x - width - 1); i <= Math.ceil(x + width + 1); i++) if (A.inBounds(i, j) && Math.abs(i + 0.5 - x) <= width) A.tiles[A.idx(i, j)] = T_WATER;
     }
-    GEN._disc(A, c, W * 0.8, 7.5, T_WATER, 4, A.seed + 4);
+    GEN._disc(A, c, W * 0.8, 9, T_WATER, 4, A.seed + 4);
     // stepping stones across the river
     for (const j of [16, 30, 38]) {
       const x = Math.floor(rx(j));
-      for (let i = x - 4; i <= x + 4; i++) if (A.inBounds(i, j) && A.tiles[A.idx(i, j)] === T_WATER && (i % 2 === 0)) A.tiles[A.idx(i, j)] = T_STONE;
+      for (let i = x - 5; i <= x + 5; i++) if (A.inBounds(i, j) && A.tiles[A.idx(i, j)] === T_WATER && (i % 2 === 0)) A.tiles[A.idx(i, j)] = T_STONE;
     }
     // twin statues guarding the falls (north)
     const sj = 8;
@@ -940,8 +940,8 @@ const GEN = {
     GEN._noisePatch(A, T_DIRT, 0.1, 0.66, A.seed + 5);
     // oasis
     const ox = c + 13, oy = c - 12;
-    GEN._disc(A, ox, oy, 8, T_GRASS, 3, A.seed + 1);
-    GEN._disc(A, ox, oy, 5, T_WATER, 3, A.seed + 2);
+    GEN._disc(A, ox, oy, 10, T_GRASS, 3, A.seed + 1);
+    GEN._disc(A, ox, oy, 6.5, T_WATER, 3, A.seed + 2);
     // ruined temple complex (west)
     const tx = c - 16, ty = c - 4;
     GEN._rect(A, tx - 7, ty - 8, tx + 7, ty + 8, T_STONE);
@@ -971,7 +971,7 @@ const GEN = {
     GEN._fill(A, T_SNOW);
     GEN._noisePatch(A, T_ROCK, 0.1, 0.63, A.seed + 1);
     // frozen lake
-    GEN._disc(A, c + 6, c + 8, 7, T_WATER, 4, A.seed + 3);
+    GEN._disc(A, c + 6, c + 8, 8.5, T_WATER, 4, A.seed + 3);
     GEN._path(A, [[c, 6], [c, W - 6]], 2.4, T_STONE);
     GEN._disc(A, c, c, 5, T_STONE);
     // mountain shrine north

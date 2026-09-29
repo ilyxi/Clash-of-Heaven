@@ -21,8 +21,14 @@ const HUD = (() => {
     ctx.fillStyle = '#3a2e4a'; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
   }
 
+  // The HUD is drawn in canvas pixels (half the size of world pixels) so it
+  // stays compact; on small windows it scales back up to stay readable.
+  let hudK = 1;
   function draw(ctx, w) {
-    const VW = Render.VW, VH = Render.VH;
+    hudK = Math.max(1, Math.round(2 * HIRES / Render.scale));
+    ctx.setTransform(hudK, 0, 0, hudK, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    const VW = Math.floor(Render.canvas.width / hudK), VH = Math.floor(Render.canvas.height / hudK);
     const f = w.player || w.camTarget;
     if (!f) return;
     if (w.player && w.player.alive && w.player.hp < w.player.maxHp * 0.25) {
@@ -37,9 +43,17 @@ const HUD = (() => {
     if (!w.demo) {
       drawStatus(ctx, f, w);
       drawSlots(ctx, f, VW, VH, w);
+      if (f.mount && f === w.player) {
+        const m = f.mount, bw = 120, x = Math.round(VW / 2 - bw / 2), y = VH - 92;
+        const pad = Input.usingPad(), sony = Input.pad.sony;
+        Font.draw(ctx, 'STORM HAWK ' + Math.ceil(m.t) + 'S', VW / 2, y - 10, '#9af0c8', { align: 'center', outline: OUT });
+        bar(ctx, x, y, bw, 3, m.shield / m.maxShield, '#e8f0ff');
+        const keys = pad ? (sony ? ['SQUARE', 'TRIANGLE', 'CROSS'] : ['X', 'Y', 'A']) : ['LMB', 'K', 'SPACE'];
+        Font.draw(ctx, keys[0] + ' BOMB  ' + keys[1] + ' DIVE  ' + keys[2] + ' HOP OFF', VW / 2, y + 6, '#e8dcc0', { align: 'center', outline: OUT });
+      }
     }
     drawMatchInfo(ctx, w, VW);
-    drawTargetFrame(ctx, w, VW);
+    drawTargetFrame(ctx, w, VW, VH);
     drawMinimap(ctx, w, VW);
     drawKillfeed(ctx, w, VW);
     drawCombo(ctx, f, VH);
@@ -96,11 +110,11 @@ const HUD = (() => {
   }
 
   // Health bar of the locked-on enemy, top centre.
-  function drawTargetFrame(ctx, w, VW) {
+  function drawTargetFrame(ctx, w, VW, VH) {
     const p = w.player, t = p && p.lock;
     if (!t || !t.alive) return;
     const E = ELEMENTS[t.affinity] || ELEMENTS.shinobi;
-    const bw = 120, x = Math.round(VW / 2 - bw / 2), y = Render.VH - 70;
+    const bw = 120, x = Math.round(VW / 2 - bw / 2), y = VH - 70;
     panel(ctx, x - 4, y - 3, bw + 8, 21);
     Font.draw(ctx, t.name.toUpperCase(), x, y, t.teamColor, { outline: OUT });
     Font.draw(ctx, 'LV' + t.level, x + bw, y, '#ffe14a', { align: 'right', outline: OUT });
@@ -212,7 +226,7 @@ const HUD = (() => {
     }
   }
 
-  const MQ = 0.75; // minimap pixels per tile step
+  const MQ = 1.1; // minimap pixels per tile step
   function buildMini(w) {
     const A = w.arena;
     const Wd = Math.ceil((A.w + A.h) * MQ), Hd = Math.ceil((A.w + A.h) * MQ / 2);
@@ -239,6 +253,7 @@ const HUD = (() => {
     const mx = VW - mini.width - 6, my = 5;
     panel(ctx, mx - 3, my - 2, mini.width + 6, mini.height + 5);
     ctx.drawImage(mini, mx, my);
+    feedY = my + mini.height + 8;
     const toMini = (x, y) => [mx + 1 + Math.round((x - y + A.h) * MQ), my + 1 + Math.round((x + y) * MQ / 2)];
     // camera frame
     const c = w.cam;
@@ -257,8 +272,9 @@ const HUD = (() => {
     }
   }
 
+  let feedY = 72;
   function drawKillfeed(ctx, w, VW) {
-    let y = 72;
+    let y = feedY;
     for (const k of w.killfeed) {
       const age = w.realTime - k.t;
       if (age > 6) continue;
