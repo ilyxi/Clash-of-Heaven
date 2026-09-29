@@ -9,6 +9,8 @@ Everything is procedurally generated in code: sprites, tiles, maps, icons, sound
 
 ## Play
 
+**Play online:** https://ilyxi.github.io/Clash-of-Heaven/
+
 **Easiest:** download [`dist/clash-of-heaven.html`](dist/clash-of-heaven.html) (one self-contained file) and double-click it. It opens in your browser; no install or internet needed (the pixel fonts load when you're online, and the game falls back to a plain font offline). Chrome or Edge is recommended, especially with a controller.
 
 From the source folder you can also open `index.html` directly, or serve it with any static server:
