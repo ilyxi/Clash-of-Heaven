@@ -4,6 +4,9 @@ A 32-bit-style pixel-art **shinobi arena brawler** that runs in the browser. Up 
 
 Everything is procedurally generated in code: sprites, tiles, maps, icons, sound effects and music. There are no assets, dependencies or build step.
 
+![A team battle in Hidden Leaf Valley](docs/screenshot-battle.png)
+![An ultimate cut-in](docs/screenshot-ultimate.png)
+
 ## Play
 
 Open `index.html` in a modern browser. Or serve the folder with any static server:
