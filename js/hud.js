@@ -52,9 +52,11 @@ const HUD = (() => {
         Font.draw(ctx, keys[0] + ' BOMB  ' + keys[1] + ' DIVE  ' + keys[2] + ' HOP OFF', VW / 2, y + 6, '#e8dcc0', { align: 'center', outline: OUT });
       }
     }
-    drawMatchInfo(ctx, w, VW);
+    // tall/narrow screens: match info moves under the status panel, smaller minimap
+    const narrow = VW < 420;
+    drawMatchInfo(ctx, w, VW, narrow);
     drawTargetFrame(ctx, w, VW, VH);
-    drawMinimap(ctx, w, VW);
+    drawMinimap(ctx, w, VW, narrow);
     drawKillfeed(ctx, w, VW);
     drawCombo(ctx, f, VH);
     drawNotices(ctx, w, VW, VH);
@@ -187,28 +189,28 @@ const HUD = (() => {
     void w;
   }
 
-  function drawMatchInfo(ctx, w, VW) {
+  function drawMatchInfo(ctx, w, VW, narrow) {
     const c = w.cfg;
     if (w.demo) return;
-    const cx = VW / 2;
-    let y = 5;
+    const cx = narrow ? 6 : VW / 2, align = narrow ? 'left' : 'center';
+    let y = narrow ? 60 : 5;
     if (c.timeLimit) {
       const col = w.timeLeft < 30 ? (Math.floor(w.realTime * 4) % 2 ? '#ff6a6a' : '#ffffff') : '#ffffff';
-      Font.draw(ctx, U.fmtTime(w.timeLeft), cx, y, col, { align: 'center', scale: 2, outline: OUT });
+      Font.draw(ctx, U.fmtTime(w.timeLeft), cx, y, col, { align, scale: 2, outline: OUT });
       y += 18;
     }
     if (c.training) {
-      Font.draw(ctx, 'TRAINING DOJO', cx, y, '#ffd35c', { align: 'center', scale: 2, outline: OUT });
-      Font.draw(ctx, 'PARTNERS REVIVE - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align: 'center', outline: OUT });
+      Font.draw(ctx, 'TRAINING DOJO', cx, y, '#ffd35c', { align, scale: 2, outline: OUT });
+      Font.draw(ctx, 'PARTNERS REVIVE - ESC TO LEAVE', cx, y + 18, '#c8c0d8', { align, outline: OUT });
       return;
     }
     const goal = c.winType === 'kills' ? 'FIRST TO ' + c.killLimit + ' KO' : c.stock + ' LIVES - LAST ONE STANDING';
-    Font.draw(ctx, goal, cx, y, '#c8c0d8', { align: 'center', outline: OUT });
+    Font.draw(ctx, goal, cx, y, '#c8c0d8', { align, outline: OUT });
     y += 11;
     if (c.mode === 'teams') {
       const teams = Object.keys(w.teamScore).map(Number);
       const bw = 28;
-      let x = cx - (teams.length * (bw + 4)) / 2;
+      let x = narrow ? cx : cx - (teams.length * (bw + 4)) / 2;
       for (const t of teams) {
         ctx.fillStyle = OUT; ctx.fillRect(x - 1, y - 1, bw + 2, 12);
         ctx.fillStyle = U.shade(TEAM_COLORS[t], -0.45); ctx.fillRect(x, y, bw, 10);
@@ -221,12 +223,12 @@ const HUD = (() => {
       const list = w.fighters.filter((f) => !f.isClone).sort((a, b) => (c.winType === 'stock' ? b.lives - a.lives : 0) || b.kills - a.kills || b.dmgDealt - a.dmgDealt).slice(0, 3);
       list.forEach((f, i) => {
         const v = c.winType === 'stock' ? f.lives + ' LIVES' : f.kills + ' KO';
-        Font.draw(ctx, (i + 1) + '. ' + f.name.split(' ')[0].toUpperCase() + '  ' + v, cx, y + i * 9, f === w.player ? '#ffe14a' : f.teamColor, { align: 'center', outline: OUT });
+        Font.draw(ctx, (i + 1) + '. ' + f.name.split(' ')[0].toUpperCase() + '  ' + v, cx, y + i * 9, f === w.player ? '#ffe14a' : f.teamColor, { align, outline: OUT });
       });
     }
   }
 
-  const MQ = 1.1; // minimap pixels per tile step
+  let MQ = 1.1; // minimap pixels per tile step
   function buildMini(w) {
     const A = w.arena;
     const Wd = Math.ceil((A.w + A.h) * MQ), Hd = Math.ceil((A.w + A.h) * MQ / 2);
@@ -246,10 +248,11 @@ const HUD = (() => {
     return c;
   }
 
-  function drawMinimap(ctx, w, VW) {
+  function drawMinimap(ctx, w, VW, narrow) {
     const A = w.arena;
     miniT -= 1 / 60;
-    if (!mini || miniT <= 0 || miniFor !== A) { mini = buildMini(w); miniT = 1.5; miniFor = A; }
+    const q = narrow ? 0.7 : 1.1;
+    if (!mini || miniT <= 0 || miniFor !== A || q !== MQ) { MQ = q; mini = buildMini(w); miniT = 1.5; miniFor = A; }
     const mx = VW - mini.width - 6, my = 5;
     panel(ctx, mx - 3, my - 2, mini.width + 6, mini.height + 5);
     ctx.drawImage(mini, mx, my);
@@ -312,7 +315,7 @@ const HUD = (() => {
     for (const n of w.notices) {
       const a = n.t < 0.15 ? n.t / 0.15 : n.t > 2.4 ? (3 - n.t) / 0.6 : 1;
       ctx.globalAlpha = U.clamp(a, 0, 1);
-      const big = /VICTORY|DEFEAT|WINS|DRAW/.test(n.text);
+      const big = /^(VICTORY!|DEFEAT|DRAW)$| WINS$/.test(n.text);
       Font.draw(ctx, n.text, VW / 2, y, n.color, { align: 'center', scale: big ? 3 : 1, outline: OUT });
       y += big ? 30 : 12;
       ctx.globalAlpha = 1;
