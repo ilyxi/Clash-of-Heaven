@@ -237,7 +237,7 @@ class Fighter {
     if (inp.ax !== null && inp.ax !== undefined) { this.aimX = inp.ax; this.aimY = inp.ay; }
     this.bufferInput(inp);
     // paralysis / genjutsu override the state machine
-    if ((this.st.para > 0 || this.st.genjutsu > 0) && !['dead', 'awaken', 'ult', 'down', 'getup'].includes(this.state)) {
+    if ((this.st.para > 0 || this.st.genjutsu > 0) && !['dead', 'awaken', 'ult', 'down', 'getup', 'air'].includes(this.state)) {
       if (this.state !== 'stun') { this.cancelAction(); this.setState('stun'); this.stunT = Math.max(this.st.para, this.st.genjutsu); }
       this.stunT = Math.max(this.stunT, this.st.para, this.st.genjutsu);
     }
@@ -673,6 +673,11 @@ class Fighter {
       this.recoverPose = s.def.pose || 'release';
       this.lastJutsu = s.id;
       this.jutsuUses = (this.jutsuUses || 0) + 1;
+      // anime-style callout of the technique name
+      const cam = W.camTarget;
+      if (!this.isClone && (W.isWatched(this) || (cam && U.dist(cam.x, cam.y, this.x, this.y) < 8))) {
+        FX.text(this.x, this.y, this.z + 58, s.def.name.toUpperCase() + '!', (ELEMENTS[s.def.element] || ELEMENTS.shinobi).light, { life: 0.75, vz: 12 });
+      }
       s.def.use(this, this.lvlOf(s.id), this.aim());
       if (this.state === 'cast') this.setState('recover');
     }
@@ -977,6 +982,8 @@ class Fighter {
     this.buffs = [];
     this.computeMods();
     this.st.burn = 0; this.st.para = 0; this.st.genjutsu = 0;
+    this.lastStreak = this.streak || 0;
+    this.streak = 0;
     if (this.isClone) { this.poof(); return; }
     const sx = src ? src.x : this.x - Math.cos(this.facing), sy = src ? src.y : this.y - Math.sin(this.facing);
     const [nx, ny] = U.norm(this.x - sx, this.y - sy);

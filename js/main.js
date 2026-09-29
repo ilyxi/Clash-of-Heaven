@@ -74,6 +74,13 @@ const Game = {
 
   start(cfg) {
     this.lastCfg = cfg;
+    // show a loading card for a frame; baking the arena takes a few hundred ms
+    UI.loading(THEMES[cfg.map] ? THEMES[cfg.map].name : '');
+    this.paused = true;
+    setTimeout(() => this.begin(cfg), 30);
+  },
+
+  begin(cfg) {
     UI.hide();
     this.world = new World(cfg);
     this.screen = 'game';

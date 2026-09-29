@@ -25,6 +25,15 @@ const HUD = (() => {
     const VW = Render.VW, VH = Render.VH;
     const f = w.player || w.camTarget;
     if (!f) return;
+    if (w.player && w.player.alive && w.player.hp < w.player.maxHp * 0.25) {
+      // low health warning pulse
+      const k = 0.5 + 0.5 * Math.sin(w.realTime * 7);
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = `rgba(200,20,30,${(0.28 - i * 0.045) * (0.5 + 0.5 * k)})`;
+        ctx.fillRect(i * 3, i * 3, VW - i * 6, 3); ctx.fillRect(i * 3, VH - i * 3 - 3, VW - i * 6, 3);
+        ctx.fillRect(i * 3, i * 3, 3, VH - i * 6); ctx.fillRect(VW - i * 3 - 3, i * 3, 3, VH - i * 6);
+      }
+    }
     if (!w.demo) {
       drawStatus(ctx, f, w);
       drawSlots(ctx, f, VW, VH, w);

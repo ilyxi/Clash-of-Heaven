@@ -335,6 +335,7 @@ const Render = (() => {
 
     for (const h of w.hazards) if (h.draw) h.draw(ctx, cam);
     FX.draw(ctx, cam, 1);
+    drawReticle(w, cam);
     for (const f of w.fighters) drawOverhead(ctx, f, cam, viewer);
     FX.drawTexts(ctx, cam);
 
@@ -349,6 +350,25 @@ const Render = (() => {
       ctx.globalAlpha = 1;
     }
     if (w.cutin) drawCutin(w.cutin);
+  }
+
+  // Ground reticle at the player's aim point (easier to read than the OS cursor).
+  let cursorHidden = false;
+  function drawReticle(w, cam) {
+    const p = w.player;
+    const show = !!(p && p.alive && !w.demo && !w.over && Input.usingMouse());
+    if (show !== cursorHidden) { cursorHidden = show; canvas.style.cursor = show ? 'none' : 'crosshair'; }
+    if (!p || !p.alive || w.demo || w.over) return;
+    const [sx, sy] = DF.sp(p.aimX, p.aimY, 0, cam);
+    const r = 5 + (Math.floor(w.realTime * 3) % 2);
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = '#120a18';
+    for (const [dx, dy] of [[-2 * r, 0], [2 * r, 0], [0, -r], [0, r]]) ctx.fillRect(sx + dx - 2, sy + dy - 2, 4, 4);
+    ctx.fillStyle = p.teamColor;
+    for (const [dx, dy] of [[-2 * r, 0], [2 * r, 0], [0, -r], [0, r]]) ctx.fillRect(sx + dx - 1, sy + dy - 1, 2, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sx, sy, 1, 1);
+    ctx.globalAlpha = 1;
   }
 
   function drawOffscreenArrows(w, cam, viewer) {

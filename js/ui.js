@@ -496,8 +496,33 @@ const UI = (() => {
     );
   }
 
+  const TIPS = [
+    'Tap BLOCK right before a hit lands to PARRY - melee attackers are stunned and jutsu fly back.',
+    'Caught in a combo? Press SPACE to swap with a log and reappear behind your attacker.',
+    'Dash through an attack at the last moment for a PERFECT DODGE: +chakra and +30% on your next hit.',
+    'Soaked enemies take 45% more lightning damage. Lightning also arcs through puddles and rivers.',
+    'Wind jutsu fan flames - and hurl enemy fireballs right back at them.',
+    'Knock enemies into walls, trees and houses for bonus damage. Big hits smash through.',
+    'Hold HEAVY to charge. A full charge shatters any guard.',
+    'Earth Rampart walls stop projectiles. Lightning chews through earth twice as fast.',
+    'Your jutsu level up as you use them. Lv5 unlocks a mastery perk.',
+    'Taijutsu Lv4: press attack right after your launcher to chase them into the air.',
+    'Hide in mist or smoke - enemies lose track of you.',
+    'Charge chakra with C only when nobody is close.',
+    'You are invulnerable while your ultimate winds up.',
+  ];
+  function loading(mapName) {
+    screen('dim',
+      h('div', { class: 'pausebox', style: 'width:min(560px,90vw)' },
+        h('div', { class: 'bigresult', style: 'color:#ffd35c;font-size:22px;margin:0', text: 'PREPARING ARENA' }),
+        mapName ? h('div', { class: 'tagline', style: 'margin:0', text: mapName.toUpperCase() }) : null,
+        h('p', { style: 'color:#efe6d4', text: 'TIP: ' + U.pick(TIPS) }),
+      ),
+    );
+  }
+
   function init() { root = document.getElementById('ui'); }
   function hide() { clear(); }
 
-  return { init, title, setup, creator, roster, howto, settings, pause, results, hide, buildConfig, loadSetup, get open() { return root && root.childElementCount > 0; } };
+  return { init, title, setup, creator, roster, howto, settings, pause, results, hide, loading, buildConfig, loadSetup, get open() { return root && root.childElementCount > 0; } };
 })();

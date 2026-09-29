@@ -246,7 +246,21 @@ class World {
       killer.ult = Math.min(100, killer.ult + 20);
       killer.heal(killer.maxHp * 0.12);
       FX.text(killer.x, killer.y, killer.z + 46, 'K.O.!', '#ff6a3a', { scale: 2, life: 1.2 });
-      if (killer === this.player) { SFX.play('ko', 0.6); this.slowmo(0.3, 0.5); this.notice('YOU DEFEATED ' + f.name.toUpperCase(), '#ffd35c'); }
+      // multi-KOs and streaks
+      killer.streak = (killer.streak || 0) + 1;
+      killer.multi = this.time - (killer.lastKillT || -99) < 7 ? (killer.multi || 1) + 1 : 1;
+      killer.lastKillT = this.time;
+      if (killer === this.player) {
+        SFX.play('ko', 0.6); this.slowmo(0.3, 0.5);
+        this.notice('YOU DEFEATED ' + f.name.toUpperCase(), '#ffd35c');
+        const m = killer.multi;
+        if (m >= 2) this.notice(m === 2 ? 'DOUBLE K.O.!' : m === 3 ? 'TRIPLE K.O.!' : 'SHINOBI MASSACRE!', '#ff9a3a');
+      }
+      if (killer.streak === 5 || killer.streak === 10 || killer.streak === 15) {
+        this.notice(killer.name.toUpperCase() + (killer.streak >= 10 ? ' IS GODLIKE!' : ' IS UNSTOPPABLE!'), '#ff6af0');
+        SFX.play('horn', 0.5);
+      }
+      if ((f.lastStreak || 0) >= 5) this.notice(killer.name.toUpperCase() + ' ENDED ' + f.name.toUpperCase() + "'S STREAK", '#9af0ff');
     }
     for (const [a, t] of f.lastAttackers) {
       if (a === killer || this.time - t > 8 || !Combat.enemies(a, f) || a.isClone) continue;
